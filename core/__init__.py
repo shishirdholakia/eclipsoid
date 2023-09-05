@@ -1,1 +1,1 @@
-from .coeffs import coeffs
+from .utils import coeffs, intersection_points
