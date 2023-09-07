@@ -1,30 +1,23 @@
 import numpy as np
+import jax.numpy as jnp
+from numpy.polynomial.legendre import leggauss
 
-def coeffs_zhu(b, xo, yo, a):
-    A = a**2-b**2
-    B = 4*b**2*xo-4*1.j*a**2*yo
-    C = -2*(a**2+b**2-2*a**2*b**2+2*b**2*xo**2+2*a**2*yo**2)
-    D = 4*b**2*xo+4*1.j*a**2*yo
-    E = a**2-b**2
-    return np.array([A, B, C, D, E])
 
-def coeffs(b, xo, yo, ro):
+def gauss_quad(f, a, b, n):
     """
-    Polynomial coefficients A, B, C, D and E coded up as a python function.
+    Computes the definite integral of a function using Gaussian quadrature with n points.
+    :param f: function to integrate
+    :param a: lower limit of integration
+    :param b: upper limit of integration
+    :param n: number of quadrature points
+    :return: definite integral of f from a to b
     """
-    A = (b**4 - 2*b**2 + 1)/(4*yo**2)
-    B = (-b**4*xo + b**2*xo)/yo**2
-    C = (-b**4*ro**2 + 3*b**4*xo**2 + b**2*ro**2 - b**2*xo**2 + b**2*yo**2 + b**2 + yo**2 - 1)/(2*yo**2)
-    D = (b**4*ro**2*xo - b**4*xo**3 - b**2*xo*yo**2 - b**2*xo)/yo**2
-    E = (b**4*ro**4 - 2*b**4*ro**2*xo**2 + b**4*xo**4 - 2*b**2*ro**2*yo**2 - 2*b**2*ro**2 + 2*b**2*xo**2*yo**2 + 2*b**2*xo**2 + yo**4 - 2*yo**2 + 1)/(4*yo**2)
-    return np.array([A, B, C, D, E])
+    x, w = leggauss(n)
+    x = 0.5 * (b - a) * x + 0.5 * (b + a)
+    return 0.5 * (b - a) * jnp.sum(w * f(x))
 
-def intersection_points(b, xo, yo, ro):
-    coeff = coeffs(b, xo, yo, ro)
-    r=np.roots(coeff)
-    x_real = r.real[np.abs(r.imag)<1e-5]
-    y_real = (-b**2*ro**2 + b**2*(x_real - xo)**2 - x_real**2 + yo**2 + 1)/(2*yo)
-    return x_real, y_real
+def poly(x):
+    return jnp.sin(x)**4
 
 if __name__=="__main__":
-    print(np.roots(coeffs(0.2*(1-0.3), 0.5,0.9,0.2)))
+    print(gauss_quad(poly,-1.,2.,10)-1/32*(36 - 8*np.sin(2) - 7*np.sin(4) + np.sin(8)))
