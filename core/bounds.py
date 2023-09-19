@@ -35,11 +35,11 @@ def compute_bounds(b, xo, yo, ro):
     if x_real.shape[0]==0:
         if jnp.hypot(xo,yo)<1:
             #occultor entirely inside star
-            xi = jnp.array([0,0])
+            xi = jnp.array([2*np.pi,0])
             phi = jnp.array([0,2*jnp.pi])
         else:
             #occultor entirely outside star
-            xi = jnp.array([0,0])
+            xi = jnp.array([2*np.pi,0])
             phi = jnp.array([0,0])
     elif x_real.shape[0]==2:
         xi = jnp.sort(jnp.arctan2(y_real,x_real))
@@ -104,6 +104,13 @@ def compute_bounds_under_planet(b, xo, yo, ro):
     
     return xi, phi
 
+
+
+
+
+##############################################################
+# PLOTTING FUNCTIONS
+##############################################################
 
 def draw_oblate_under_planet(b, xo, yo, ro):
     # Set up the figure
