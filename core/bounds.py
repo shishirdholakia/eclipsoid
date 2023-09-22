@@ -1,4 +1,3 @@
-import jax.numpy as jnp
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Ellipse
@@ -10,7 +9,7 @@ def coeffs_zhu(b, xo, yo, a):
     C = -2*(a**2+b**2-2*a**2*b**2+2*b**2*xo**2+2*a**2*yo**2)
     D = 4*b**2*xo+4*1.j*a**2*yo
     E = a**2-b**2
-    return jnp.array([A, B, C, D, E])
+    return np.array([A, B, C, D, E])
 
 def coeffs(b, xo, yo, ro):
     """
@@ -21,46 +20,55 @@ def coeffs(b, xo, yo, ro):
     C = (-b**4*ro**2 + 3*b**4*xo**2 + b**2*ro**2 - b**2*xo**2 + b**2*yo**2 + b**2 + yo**2 - 1)/(2*yo**2)
     D = (b**4*ro**2*xo - b**4*xo**3 - b**2*xo*yo**2 - b**2*xo)/yo**2
     E = (b**4*ro**4 - 2*b**4*ro**2*xo**2 + b**4*xo**4 - 2*b**2*ro**2*yo**2 - 2*b**2*ro**2 + 2*b**2*xo**2*yo**2 + 2*b**2*xo**2 + yo**4 - 2*yo**2 + 1)/(4*yo**2)
-    return jnp.array([A, B, C, D, E])
+    return np.array([A, B, C, D, E])
 
 def intersection_points(b, xo, yo, ro):
     coeff = coeffs(b, xo, yo, ro)
-    r=jnp.roots(coeff)
-    x_real = r.real[jnp.abs(r.imag)<1e-5]
+    r=np.roots(coeff)
+    x_real = r.real[np.abs(r.imag)<1e-5]
     y_real = (-b**2*ro**2 + b**2*(x_real - xo)**2 - x_real**2 + yo**2 + 1)/(2*yo)
     return x_real, y_real
 
 def compute_bounds(b, xo, yo, ro):
     x_real, y_real = intersection_points(b, xo, yo, ro)
     if x_real.shape[0]==0:
-        if jnp.hypot(xo,yo)<1:
+        if np.hypot(xo,yo)<1:
             #occultor entirely inside star
-            xi = jnp.array([2*np.pi,0])
-            phi = jnp.array([0,2*jnp.pi])
+            xi = np.array([2*np.pi,0])
+            phi = np.array([0,2*np.pi])
+            #force midpoint to be inside the star
+            midpoint = 0
         else:
             #occultor entirely outside star
-            xi = jnp.array([2*np.pi,0])
-            phi = jnp.array([0,0])
+            xi = np.array([2*np.pi,0])
+            phi = np.array([0,0])
+            #force midpoint to be inside the star
+            midpoint = 2
     elif x_real.shape[0]==2:
-        xi = jnp.sort(jnp.arctan2(y_real,x_real))
-        xi = jnp.where(
+        
+        xi = np.sort(np.arctan2(y_real,x_real))
+        xi = np.where(
         #if
-        xi[0]<jnp.arctan2(-yo,-xo)<xi[1], 
+        xi[0]<np.arctan2(-yo,-xo)<xi[1], 
         #then
-        jnp.array([xi[1],xi[0]]),
+        np.array([xi[1],xi[0]]),
         #else
-        jnp.array([xi[0]+2*jnp.pi,xi[1]])
+        np.array([xi[0]+2*np.pi,xi[1]])
                 )
     
-        phi = jnp.sort(jnp.arctan2(jnp.sqrt(ro**2-(x_real-xo)**2),x_real-xo)*jnp.sign(jnp.arctan2(y_real-yo,x_real-xo)))
-        phi_inters=jnp.arctan2(-yo,-xo)
-        phi = jnp.where(
+        phi = np.sort(np.arctan2(np.sqrt(ro**2-(x_real-xo)**2),x_real-xo)*np.sign(np.arctan2(y_real-yo,x_real-xo)))
+        #ALGORITHM TO FIND CORRECT SEGMENT FOR INTEGRATION
+        #FIND MIDDLE POINT ON ELLIPSE PARAMETRIZED BY PHI
+        #IF THAT POINT IS IN CIRCLE, RIGHT BOUNDS
+        #IF NOT, SWITCH
+        midpoint = np.hypot(ro*np.cos(np.mean(phi)) + xo, ro*b*np.sin(np.mean(phi))+yo)
+        phi = np.where(
             #if
-            phi[0] < phi_inters < phi[1],
+            midpoint<1.0,
             #then
-            jnp.array([phi[0],phi[1]]),
+            np.array([phi[0],phi[1]]),
             #else
-            jnp.array([phi[1],2*jnp.pi+phi[0]])
+            np.array([phi[1],2*np.pi+phi[0]])
         )
     else:
         raise NotImplementedError("jax0planet doesn't yet support 4 intersection points. Reduce r_occultor to << r_occulted")
@@ -70,34 +78,34 @@ def compute_bounds(b, xo, yo, ro):
 def compute_bounds_under_planet(b, xo, yo, ro):
     x_real, y_real = intersection_points(b, xo, yo, ro)
     if x_real.shape[0]==0:
-        if jnp.hypot(xo,yo)<1:
+        if np.hypot(xo,yo)<1:
             #occultor entirely inside star
-            xi = jnp.array([0,0])
-            phi = jnp.array([0,2*jnp.pi])
+            xi = np.array([0,0])
+            phi = np.array([0,2*np.pi])
         else:
             #occultor entirely outside star
-            xi = jnp.array([0,0])
-            phi = jnp.array([0,0])
+            xi = np.array([0,0])
+            phi = np.array([0,0])
     elif x_real.shape[0]==2:
-        xi = jnp.sort(jnp.arctan2(y_real,x_real))
-        xi = jnp.where(
+        xi = np.sort(np.arctan2(y_real,x_real))
+        xi = np.where(
         #if xi contains vector pointing to planet center
-        xi[0]<jnp.arctan2(-yo,-xo)<xi[1], 
+        xi[0]<np.arctan2(-yo,-xo)<xi[1], 
         #then
-        jnp.array([xi[1],xi[0]+2*jnp.pi]),
+        np.array([xi[1],xi[0]+2*np.pi]),
         #else
-        jnp.array([xi[0],xi[1]]),
+        np.array([xi[0],xi[1]]),
                 )
     
-        phi = jnp.sort(jnp.arctan2(jnp.sqrt(ro**2-(x_real-xo)**2),x_real-xo)*jnp.sign(jnp.arctan2(y_real-yo,x_real-xo)))
-        phi_inters=jnp.arctan2(-yo,-xo)
-        phi = jnp.where(
+        phi = np.sort(np.arctan2(np.sqrt(ro**2-(x_real-xo)**2),x_real-xo)*np.sign(np.arctan2(y_real-yo,x_real-xo)))
+        phi_inters=np.arctan2(-yo,-xo)
+        phi = np.where(
             #if
             phi[0] < phi_inters < phi[1],
             #then
-            jnp.array([phi[0],phi[1]]),
+            np.array([phi[0],phi[1]]),
             #else
-            jnp.array([phi[1],2*jnp.pi+phi[0]])
+            np.array([phi[1],2*np.pi+phi[0]])
         )
     else:
         raise NotImplementedError("jax0planet doesn't yet support 4 intersection points. Reduce r_occultor to << r_occulted")
