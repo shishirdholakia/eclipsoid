@@ -1,6 +1,5 @@
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
-from matplotlib.patches import Circle, Ellipse
+import jax
 
 
 def coeffs_zhu(b, xo, yo, a):
@@ -22,40 +21,38 @@ def coeffs(b, xo, yo, ro):
     E = (b**4*ro**4 - 2*b**4*ro**2*xo**2 + b**4*xo**4 - 2*b**2*ro**2*yo**2 - 2*b**2*ro**2 + 2*b**2*xo**2*yo**2 + 2*b**2*xo**2 + yo**4 - 2*yo**2 + 1)/(4*yo**2)
     return jnp.array([A, B, C, D, E])
 
-def intersection_points(b, xo, yo, ro):
-    coeff = coeffs(b, xo, yo, ro)
-    r=jnp.roots(coeff,)
-    x_real = r.real[jnp.abs(r.imag)<1e-5]
-    y_real = (-b**2*ro**2 + b**2*(x_real - xo)**2 - x_real**2 + yo**2 + 1)/(2*yo)
-    return x_real, y_real
-
 def compute_bounds(b, xo, yo, ro):
-    x_real, y_real = intersection_points(b, xo, yo, ro)
-    if x_real.shape[0]==0:
-        if jnp.hypot(xo,yo)<1:
-            #occultor entirely inside star
-            xi = jnp.array([2*jnp.pi,0])
-            phi = jnp.array([0,2*jnp.pi])
-            #force midpoint to be inside the star
-            midpoint = 0
-        else:
-            #occultor entirely outside star
-            xi = jnp.array([2*jnp.pi,0])
-            phi = jnp.array([0,0])
-            #force midpoint to be inside the star
-            midpoint = 2
-    elif x_real.shape[0]==2:
+    
+    coeff = coeffs(b, xo, yo, ro)
+    x_roots=jnp.roots(coeff,strip_zeros=False)
+    y_roots = (-b**2*ro**2 + b**2*(x_roots - xo)**2 - x_roots**2 + yo**2 + 1)/(2*yo)
+    reals = jnp.sum(jnp.abs(x_roots.imag)<1e-5)
+    
+    def no_ints(x_roots, y_roots, b, xo, yo, ro):
+        in_star = jnp.hypot(xo,yo)<1
+        xi = jnp.array([2*jnp.pi,0])
+        phi = jnp.where(in_star,jnp.array([0,2*jnp.pi]),jnp.array([0,0]))
+        return xi, phi
+    def two_ints(x_roots, y_roots, b, xo, yo, ro):
+        #sort by value of complex part
+        real_sorted_args = jnp.argsort(jnp.abs(x_roots.imag))
+        
+        #remove last two values, leaving only real roots
+        x_real = x_roots[real_sorted_args][:-2].real #size 2 array
+        y_real = y_roots[real_sorted_args][:-2].real #size 2 array
         
         xi = jnp.sort(jnp.arctan2(y_real,x_real))
+        
+        between = jnp.logical_and(jnp.arctan2(-yo,-xo)>xi[0], jnp.arctan2(-yo,-xo)<xi[1])
         xi = jnp.where(
         #if
-        xi[0]<jnp.arctan2(-yo,-xo)<xi[1], 
+        between, 
         #then
         jnp.array([xi[1],xi[0]]),
         #else
         jnp.array([xi[0]+2*jnp.pi,xi[1]])
                 )
-    
+        
         phi = jnp.sort(jnp.arctan2(jnp.sqrt(ro**2-(x_real-xo)**2),x_real-xo)*jnp.sign(jnp.arctan2(y_real-yo,x_real-xo)))
         #ALGORITHM TO FIND CORRECT SEGMENT FOR INTEGRATION
         #FIND MIDDLE POINT ON ELLIPSE PARAMETRIZED BY PHI
@@ -70,48 +67,17 @@ def compute_bounds(b, xo, yo, ro):
             #else
             jnp.array([phi[1],2*jnp.pi+phi[0]])
         )
-    else:
-        raise NotImplementedError("jax0planet doesn't yet support 4 intersection points. Reduce r_occultor to << r_occulted")
-    
-    return xi, phi
+        return xi, phi
+    def four_ints(x_roots, y_roots, b, xo, yo, ro):
+        return jnp.array([jnp.nan, jnp.nan]), jnp.array([jnp.nan, jnp.nan])
 
-def compute_bounds_under_planet(b, xo, yo, ro):
-    x_real, y_real = intersection_points(b, xo, yo, ro)
-    if x_real.shape[0]==0:
-        if jnp.hypot(xo,yo)<1:
-            #occultor entirely inside star
-            xi = jnp.array([0,0])
-            phi = jnp.array([0,2*jnp.pi])
-        else:
-            #occultor entirely outside star
-            xi = jnp.array([0,0])
-            phi = jnp.array([0,0])
-    elif x_real.shape[0]==2:
-        xi = jnp.sort(jnp.arctan2(y_real,x_real))
-        xi = jnp.where(
-        #if xi contains vector pointing to planet center
-        xi[0]<jnp.arctan2(-yo,-xo)<xi[1], 
-        #then
-        jnp.array([xi[1],xi[0]+2*jnp.pi]),
-        #else
-        jnp.array([xi[0],xi[1]]),
-                )
     
-        phi = jnp.sort(jnp.arctan2(jnp.sqrt(ro**2-(x_real-xo)**2),x_real-xo)*jnp.sign(jnp.arctan2(y_real-yo,x_real-xo)))
-        phi_inters=jnp.arctan2(-yo,-xo)
-        phi = jnp.where(
-            #if
-            phi[0] < phi_inters < phi[1],
-            #then
-            jnp.array([phi[0],phi[1]]),
-            #else
-            jnp.array([phi[1],2*jnp.pi+phi[0]])
-        )
-    else:
-        raise NotImplementedError("jax0planet doesn't yet support 4 intersection points. Reduce r_occultor to << r_occulted")
-    
+    xi, phi = jax.lax.cond(reals==0,
+                           no_ints,
+                           lambda x_roots, y_roots, b, xo, yo, ro: 
+                               jax.lax.cond(reals==2, two_ints, four_ints, x_roots, y_roots, b, xo, yo, ro)
+                           , x_roots, y_roots, b, xo, yo, ro)
     return xi, phi
-
 
 
 
