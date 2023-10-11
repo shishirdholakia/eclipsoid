@@ -21,7 +21,7 @@ def greens_basis_transform(u):
     g = g.at[2].set(u[0] + 2*u[1])
     g = g.at[4].set(u[1]/3)
     g = g.at[8].set(u[1])
-    return g
+    return g/(-jnp.pi*(1-u[0]/3-u[1]/6))
 
 compute_bounds_vec = jax.jit(jax.vmap(compute_bounds, in_axes=(None, 0,0,None)))
 #sT_vec = jax.jit(jax.vmap(sT,in_axes=(0, 0, 0,0,None,0,0,None,None)), static_argnums=8)
