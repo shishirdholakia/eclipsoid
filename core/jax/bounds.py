@@ -1,5 +1,6 @@
 import jax.numpy as jnp
 import jax
+from .utils import zero_safe_sqrt, zero_safe_arctan2, zero_safe_power
 
 
 def coeffs_zhu(b, xo, yo, a):
@@ -41,9 +42,9 @@ def compute_bounds(b, xo, yo, ro):
         x_real = x_roots[real_sorted_args][:-2].real #size 2 array
         y_real = y_roots[real_sorted_args][:-2].real #size 2 array
         
-        xi = jnp.sort(jnp.arctan2(y_real,x_real))
+        xi = jnp.sort(zero_safe_arctan2(y_real,x_real))
         
-        between = jnp.logical_and(jnp.arctan2(-yo,-xo)>xi[0], jnp.arctan2(-yo,-xo)<xi[1])
+        between = jnp.logical_and(zero_safe_arctan2(-yo,-xo)>xi[0], zero_safe_arctan2(-yo,-xo)<xi[1])
         xi = jnp.where(
         #if
         between, 
@@ -53,7 +54,7 @@ def compute_bounds(b, xo, yo, ro):
         jnp.array([xi[0]+2*jnp.pi,xi[1]])
                 )
         
-        phi = jnp.sort(jnp.arctan2(jnp.sqrt(ro**2-(x_real-xo)**2),x_real-xo)*jnp.sign(jnp.arctan2(y_real-yo,x_real-xo)))
+        phi = jnp.sort(zero_safe_arctan2(zero_safe_sqrt(jnp.abs(ro**2-(x_real-xo)**2)),x_real-xo)*jnp.sign(zero_safe_arctan2(y_real-yo,x_real-xo)))
         #ALGORITHM TO FIND CORRECT SEGMENT FOR INTEGRATION
         #FIND MIDDLE POINT ON ELLIPSE PARAMETRIZED BY PHI
         #IF THAT POINT IS IN CIRCLE, RIGHT BOUNDS
@@ -69,7 +70,7 @@ def compute_bounds(b, xo, yo, ro):
         )
         return xi, phi
     def four_ints(x_roots, y_roots, b, xo, yo, ro):
-        return jnp.array([jnp.nan, jnp.nan]), jnp.array([jnp.nan, jnp.nan])
+        return jnp.array([jnp.inf, jnp.inf]), jnp.array([jnp.inf, jnp.inf])
 
     
     xi, phi = jax.lax.cond(reals==0,
@@ -78,6 +79,4 @@ def compute_bounds(b, xo, yo, ro):
                                jax.lax.cond(reals==2, two_ints, four_ints, x_roots, y_roots, b, xo, yo, ro)
                            , x_roots, y_roots, b, xo, yo, ro)
     return xi, phi
-
-
 
