@@ -2,12 +2,13 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Ellipse
 from scipy.integrate import quad
-from .utils import gauss_quad
+from .utils import gauss_quad, zero_safe_sqrt
 from jax.tree_util import Partial
 import jax
 from jax import config
 config.update("jax_enable_x64", True)
 import numpy as np
+
 
 def G(n):
     """
@@ -23,7 +24,7 @@ def G(n):
 
     # NOTE: The abs prevents NaNs when the argument of the sqrt is
     # zero but floating point error causes it to be ~ -eps.
-    z = lambda x, y: jnp.maximum(1e-12, jnp.sqrt(jnp.abs(1 - x ** 2 - y ** 2)))
+    z = lambda x, y: jnp.maximum(1e-12, zero_safe_sqrt(jnp.abs(1 - x ** 2 - y ** 2)))
     
     if nu % 2 == 0:
         
