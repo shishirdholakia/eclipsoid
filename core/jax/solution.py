@@ -24,7 +24,7 @@ def G(n):
 
     # NOTE: The abs prevents NaNs when the argument of the sqrt is
     # zero but floating point error causes it to be ~ -eps.
-    z = lambda x, y: jnp.maximum(1e-12, zero_safe_sqrt(jnp.abs(1 - x ** 2 - y ** 2)))
+    z = lambda x, y: zero_safe_sqrt(jnp.maximum(1e-24, jnp.abs(1 - x ** 2 - y ** 2)))
     
     if nu % 2 == 0:
         

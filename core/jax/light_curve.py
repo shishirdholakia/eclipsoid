@@ -4,7 +4,7 @@ import jax
 from jax import config
 config.update("jax_enable_x64", True)
 import numpy as np
-from jaxoplanet.light_curves import LimbDarkLightCurve
+from jaxoplanet.light_curves import limb_dark_light_curve
 from jaxoplanet import light_curves, orbits
 
 from .bounds import compute_bounds
@@ -40,8 +40,8 @@ def oblate_lightcurve(params,t):
         t (Array): _description_
     """
     b = 1-params['f']
-    orbit = orbits.KeplerianOrbit.init(period=params['period'], radius=params['radius'], impact_param=params['bo'])
-    xo, yo = orbit.relative_position(t)[0][0],orbit.relative_position(t)[1][0]
+    orbit = orbits.TransitOrbit(period=params['period'], radius=params['radius'], impact_param=params['bo'], duration=params['duration'])
+    xo, yo = orbit.relative_position(t)[0].magnitude,orbit.relative_position(t)[1].magnitude
     
     xo_rot, yo_rot = xo*jnp.cos(params['theta'])-yo*jnp.sin(params['theta']), xo*jnp.sin(params['theta'])+yo*jnp.cos(params['theta'])
     xis, phis = compute_bounds_vec(b,xo_rot,yo_rot,params['radius'])
