@@ -228,7 +228,7 @@ def draw_oblate_under_planet(b, xo, yo, ro):
         )
     #bold the P integral region
     ax.plot(x, y, color='r', lw=2,zorder=-1);
-    return ax
+    return fig, ax
 
 def draw_oblate(b, xo, yo, ro):
     # Set up the figure
@@ -338,4 +338,9 @@ def draw_oblate(b, xo, yo, ro):
         )
     #bold the P integral region
     ax.plot(x, y, color='r', lw=2,zorder=-1);
-    return ax
+    return fig, ax
+
+if __name__ == "__main__":
+    # Draw the star
+    fig, ax = draw_oblate(0.7, 0.8, 0.8, 0.4)
+    fig.savefig("oblate_star.png", dpi=300)

@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 import jax
-from .utils import zero_safe_sqrt, zero_safe_arctan2, zero_safe_power
+from .utils import zero_safe_sqrt, zero_safe_arctan2, zero_safe_power, roots
 
 
 def coeffs_zhu(b, xo, yo, a):
@@ -24,8 +24,8 @@ def coeffs(b, xo, yo, ro):
 
 def compute_bounds(b, xo, yo, ro):
     
-    coeff = coeffs(b, xo, yo, ro)
-    x_roots=jnp.roots(coeff,strip_zeros=False)
+    coeff = jnp.array(coeffs(b, xo, yo, ro),dtype=complex)
+    x_roots=roots(coeff,strip_zeros=False)
     y_roots = (-b**2*ro**2 + b**2*(x_roots - xo)**2 - x_roots**2 + yo**2 + 1)/(2*yo)
     reals = jnp.sum(jnp.abs(x_roots.imag)<1e-5)
     
