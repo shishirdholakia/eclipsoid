@@ -1,0 +1,25 @@
+[project]
+name = "jax0planet"
+version = "0.0.1"
+description = "Transit models for oblate planets in Jax"
+readme = "README.md"
+requires-python =">=3.9"
+authors = [
+  {name="Shishir Dholakia, email="dholakia.shishir@gmail.com"},
+  {name = "Shashank Dholakia", email = "s.dholakia@uq.edu.au"},
+]
+keywords = ["python", "exoplanet", "machine-learning", "jax", "autodiff", "differentiable", "transit", "telescope"]
+urls = {repository = "https://github.com/shishirdholakia/jax0planet/"}
+dependencies = ["jax", "jaxlib", "scipy", "numpy", "jaxoplanet>=0.0.2", "zodiax>=0.4.1"]
+classifiers=[
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project.optional-dependencies]
+extras = ["matplotlib", "jupyter", "jupyterlab", "tqdm", "numpyro"]
+dev = ["pytest"]

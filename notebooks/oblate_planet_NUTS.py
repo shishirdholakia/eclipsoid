@@ -21,7 +21,7 @@ from jaxoplanet import light_curves, orbits
 import arviz as az
 import corner
 
-from core.jax import oblate_lightcurve, compute_bounds
+from src.jax0planet import oblate_lightcurve, compute_bounds
 
 np.random.seed(11)
 period_true = np.random.uniform(5, 20)
