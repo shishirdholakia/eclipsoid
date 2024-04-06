@@ -1,5 +1,3 @@
-import sys
-sys.path.append("/Users/uqsdhola/Projects/jax0planet/")
 
 import jax.numpy as jnp
 import jax
@@ -21,7 +19,7 @@ from jaxoplanet import light_curves, orbits
 import arviz as az
 import corner
 
-from src.jax0planet import oblate_lightcurve, compute_bounds
+from jax0planet import legacy_oblate_lightcurve, compute_bounds
 
 np.random.seed(11)
 period_true = np.random.uniform(5, 20)

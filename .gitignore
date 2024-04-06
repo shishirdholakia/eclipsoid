@@ -12,6 +12,7 @@ fits
 *.o
 *.so
 *.pyc
+*.egg-info
 
 # Packages #
 ############
@@ -25,7 +26,6 @@ fits
 *.rar
 *.tar
 *.zip
-
 
 # OS generated files #
 ######################

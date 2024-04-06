@@ -5,7 +5,7 @@ description = "Transit models for oblate planets in Jax"
 readme = "README.md"
 requires-python =">=3.9"
 authors = [
-  {name="Shishir Dholakia, email="dholakia.shishir@gmail.com"},
+  {name="Shishir Dholakia", email="dholakia.shishir@gmail.com"},
   {name = "Shashank Dholakia", email = "s.dholakia@uq.edu.au"},
 ]
 keywords = ["python", "exoplanet", "machine-learning", "jax", "autodiff", "differentiable", "transit", "telescope"]
