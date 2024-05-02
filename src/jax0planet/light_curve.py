@@ -90,7 +90,7 @@ def legacy_oblate_lightcurve(params,t):
     
     xo_rot, yo_rot = xo*jnp.cos(params['theta'])-yo*jnp.sin(params['theta']), xo*jnp.sin(params['theta'])+yo*jnp.cos(params['theta'])
     xis, phis = compute_bounds_oblate(b,xo_rot,yo_rot,params['radius'])
-    g = greens_basis_transform(params['u'])
+    g = legacy_greens_basis_transform(params['u'])
     ns = np.arange(len(g))
     lcs = jnp.zeros((len(g),len(t)))
     
