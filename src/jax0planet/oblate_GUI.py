@@ -54,10 +54,10 @@ ax1.set_ylabel('Residual (ppm)')
 def update(val):
     params['theta'] = s_theta.get()
     params['bo'] = s_impact.get()
-    params['radius'] = s_radius.get()
     params['f'] = s_f.get()
+    params['radius'] = s_radius.get()/jnp.sqrt((1-params['f']))
     orbit = TransitOrbit(
-        period=params['period'], time_transit=0, duration=params['duration'], impact_param=params['bo'], radius=params['radius']
+        period=params['period'], time_transit=0, duration=params['duration'], impact_param=params['bo'], radius=params['radius']*jnp.sqrt((1-params['f']))
     )
     lc = jax.vmap(limb_dark_light_curve(orbit, params['u']))(t)
     oblate_lc = oblate_lightcurve(params, t=t)

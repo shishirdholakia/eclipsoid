@@ -20,8 +20,10 @@ compute_bounds_oblate = jax.jit(jax.vmap(compute_bounds, in_axes=(None, 0,0,None
 def greens_basis_transform(u):
     U = jnp.array([1, *u])
     p_u = (U @ U0(len(u)))
-    lmax = jnp.floor(jnp.sqrt(len(p_u))).astype(int)-1
-    g_u =  scipy.sparse.linalg.inv(A2_inv(lmax)) @ p_u
+    lmax = np.floor(np.sqrt(len(p_u))).astype(int)-1
+    A2i = scipy.sparse.linalg.inv(A2_inv(lmax))
+    A2i = jax.experimental.sparse.BCOO.from_scipy_sparse(A2i)
+    g_u =  A2i @ p_u
     return g_u / (- p_u @ rT(lmax))
 
 def oblate_lightcurve(orbit, u, t):
@@ -90,7 +92,7 @@ def legacy_oblate_lightcurve(params,t):
     
     xo_rot, yo_rot = xo*jnp.cos(params['theta'])-yo*jnp.sin(params['theta']), xo*jnp.sin(params['theta'])+yo*jnp.cos(params['theta'])
     xis, phis = compute_bounds_oblate(b,xo_rot,yo_rot,params['radius'])
-    g = legacy_greens_basis_transform(params['u'])
+    g = greens_basis_transform(params['u'])
     ns = np.arange(len(g))
     lcs = jnp.zeros((len(g),len(t)))
     
