@@ -1,5 +1,5 @@
-from jax0planet.oblate import OblateSystem, OblateBody, OblateTransitOrbit
-from jax0planet.light_curve import oblate_lightcurve, legacy_oblate_lightcurve
+from eclipsoid.oblate import OblateSystem, OblateBody, OblateTransitOrbit
+from eclipsoid.light_curve import oblate_lightcurve, legacy_oblate_lightcurve
 
 from jaxoplanet.light_curves import limb_dark_light_curve
 from jaxoplanet.orbits import TransitOrbit
