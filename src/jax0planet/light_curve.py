@@ -7,6 +7,8 @@ from jaxoplanet import orbits
 
 from jaxoplanet.experimental.starry.basis import U0, A2_inv
 from jaxoplanet.experimental.starry.light_curves import rT
+from jaxoplanet.light_curves.utils import vectorize
+from jaxoplanet import units
 import jpu.numpy as jnpu
 
 from .bounds import compute_bounds
@@ -24,33 +26,34 @@ def greens_basis_transform(u):
     g_u =  scipy.sparse.linalg.inv(A2_inv(lmax)) @ p_u
     return g_u / (- p_u @ rT(lmax))
 
-def oblate_lightcurve(orbit, u, t):
+def oblate_lightcurve(orbit, u):
     obliquity = orbit.body_obliquity.magnitude
     oblateness = orbit.body_oblateness.magnitude
     b = 1.-oblateness
     #convert to r_eq for computing intersection points
-    r_eq = (jnpu.sqrt(orbit.radius**2/b) / orbit.central_radius).magnitude
-    xo, yo = orbit.relative_position(t)[0].magnitude,orbit.relative_position(t)[1].magnitude
-    #hacks to get it to work with both keplerian and transit orbit classes
-    #keplerian system wants to return a vector (one for each planet)
-    #transit orbit wants to return a scalar
-    # TODO implement autobatching over multiple planets where keplerian orbit given
-    xo = jnp.reshape(xo, (len(t),))
-    yo = jnp.reshape(yo, (len(t),))
-    xo_rot, yo_rot = xo*jnp.cos(obliquity)-yo*jnp.sin(obliquity), xo*jnp.sin(obliquity)+yo*jnp.cos(obliquity)
-    xis, phis = compute_bounds_oblate(float(b),xo_rot,yo_rot,float(r_eq))
-    g_u = greens_basis_transform(u)
-    ns = np.arange(len(g_u))
-    lcs = jnp.zeros((len(g_u),len(t)))
-    zeros = lambda phi1, phi2, xi1, xi2, b, xo, yo, ro: jnp.zeros(len(xo))
-    for n in ns:
-        cond = g_u[n]!=0
-        sT_vec = jax.jit(jax.vmap(Partial(sT, n=n),in_axes=(0, 0, 0,0,None,0,0,None)))
-        lcs = lcs.at[n].set(
-            jax.lax.cond(cond, sT_vec, zeros, phis[:,0],phis[:,1], xis[:,0],xis[:,1], float(b),xo_rot,yo_rot,float(r_eq)))
-
-    lcs = jnp.array(lcs).T@g_u
-    return lcs
+    @vectorize
+    def impl(time):
+        t = time
+        r_eq = (jnpu.sqrt(orbit.radius**2/b) / orbit.central_radius).magnitude
+        xo, yo = orbit.relative_position(t)[0].magnitude,orbit.relative_position(t)[1].magnitude
+        #hacks to get it to work with both keplerian and transit orbit classes
+        #keplerian system wants to return a vector (one for each planet)
+        #transit orbit wants to return a scalar
+        # TODO implement autobatching over multiple planets where keplerian orbit given
+        xo_rot, yo_rot = xo*jnp.cos(obliquity)-yo*jnp.sin(obliquity), xo*jnp.sin(obliquity)+yo*jnp.cos(obliquity)
+        xis, phis = compute_bounds(jnp.array(b).item(),jnp.squeeze(xo_rot),jnp.squeeze(yo_rot),jnp.array(r_eq).item())
+        g_u = greens_basis_transform(u)
+        ns = np.arange(len(g_u))
+        lcs = jnp.zeros((len(g_u)))
+        zeros = lambda phi1, phi2, xi1, xi2, b, xo, yo, ro: 0.
+        for n in ns:
+            cond = g_u[n]!=0
+            sT_vec = Partial(sT, n=n)
+            lcs = lcs.at[n].set(
+                jax.lax.cond(cond, sT_vec, zeros, phis[0],phis[1], xis[0],xis[1], jnp.array(b).item(),xo_rot,yo_rot,jnp.array(r_eq).item()))
+        lcs = jnp.array(lcs).T@g_u
+        return lcs
+    return impl
     
     
 def ellipsoid_lightcurve(orbit, t):
