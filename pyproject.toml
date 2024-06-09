@@ -1,5 +1,5 @@
 [project]
-name = "jax0planet"
+name = "eclipsoid"
 version = "0.0.1"
 description = "Transit models for oblate planets in Jax"
 readme = "README.md"

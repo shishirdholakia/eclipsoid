@@ -14,20 +14,24 @@ def coeffs_zhu(b, xo, yo, a):
 def coeffs(b, xo, yo, ro):
     """
     Polynomial coefficients A, B, C, D and E coded up as a python function.
+    A, B, C, D and E all have a denominator of yo^2 which has been factored out
+    for numerical stability at yo -> 0.
     """
-    A = (b**4 - 2*b**2 + 1)/(4*yo**2)
-    B = (-b**4*xo + b**2*xo)/yo**2
-    C = (-b**4*ro**2 + 3*b**4*xo**2 + b**2*ro**2 - b**2*xo**2 + b**2*yo**2 + b**2 + yo**2 - 1)/(2*yo**2)
-    D = (b**4*ro**2*xo - b**4*xo**3 - b**2*xo*yo**2 - b**2*xo)/yo**2
-    E = (b**4*ro**4 - 2*b**4*ro**2*xo**2 + b**4*xo**4 - 2*b**2*ro**2*yo**2 - 2*b**2*ro**2 + 2*b**2*xo**2*yo**2 + 2*b**2*xo**2 + yo**4 - 2*yo**2 + 1)/(4*yo**2)
+    A = (b**4 - 2*b**2 + 1)/4
+    B = (-b**4*xo + b**2*xo)
+    C = (-b**4*ro**2 + 3*b**4*xo**2 + b**2*ro**2 - b**2*xo**2 + b**2*yo**2 + b**2 + yo**2 - 1)/2
+    D = (b**4*ro**2*xo - b**4*xo**3 - b**2*xo*yo**2 - b**2*xo)
+    E = (b**4*ro**4 - 2*b**4*ro**2*xo**2 + b**4*xo**4 - 2*b**2*ro**2*yo**2 - 2*b**2*ro**2 + 2*b**2*xo**2*yo**2 + 2*b**2*xo**2 + yo**4 - 2*yo**2 + 1)/4
     return jnp.array([A, B, C, D, E])
 
 def compute_bounds(b, xo, yo, ro):
     
     coeff = jnp.array(coeffs(b, xo, yo, ro),dtype=complex)
     x_roots=roots(coeff,strip_zeros=False)
-    y_roots = (-b**2*ro**2 + b**2*(x_roots - xo)**2 - x_roots**2 + yo**2 + 1)/(2*yo)
-    reals = jnp.sum(jnp.abs(x_roots.imag)<1e-5)
+    #plug into the ellipse to avoid the +/- ambiguity with sqrt(1-x_roots**2)
+    #but how to fix the precision issue for yo->0?
+    y_roots = jnp.where(jnp.abs(yo)<1e-6,zero_safe_sqrt(1-x_roots**2),(-b**2*ro**2 + b**2*(x_roots - xo)**2 - x_roots**2 + yo**2 + 1)/(2*yo))
+    reals = jnp.sum(jnp.abs(x_roots.imag)<1e-10)
     
     def no_ints(x_roots, y_roots, b, xo, yo, ro):
         in_star = jnp.hypot(xo,yo)<1

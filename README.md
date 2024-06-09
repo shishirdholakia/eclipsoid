@@ -1,2 +1,2 @@
-# jax0planet
+# eclipsoid
 Transit models for oblate planets in Jax
