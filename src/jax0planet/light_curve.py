@@ -1,4 +1,5 @@
 import jax
+import jax.experimental
 import jax.numpy as jnp
 from jax import config
 config.update("jax_enable_x64", True)
@@ -22,8 +23,10 @@ compute_bounds_oblate = jax.jit(jax.vmap(compute_bounds, in_axes=(None, 0,0,None
 def greens_basis_transform(u):
     U = jnp.array([1, *u])
     p_u = (U @ U0(len(u)))
-    lmax = jnp.floor(jnp.sqrt(len(p_u))).astype(int)-1
-    g_u =  scipy.sparse.linalg.inv(A2_inv(lmax)) @ p_u
+    lmax = np.floor(np.sqrt(len(p_u))).astype(int)-1
+    A2i = scipy.sparse.linalg.inv(A2_inv(lmax))
+    A2i = jax.experimental.sparse.BCOO.from_scipy_sparse(A2i)
+    g_u =  A2i @ p_u
     return g_u / (- p_u @ rT(lmax))
 
 def oblate_lightcurve(orbit, u):
@@ -41,7 +44,7 @@ def oblate_lightcurve(orbit, u):
         #transit orbit wants to return a scalar
         # TODO implement autobatching over multiple planets where keplerian orbit given
         xo_rot, yo_rot = xo*jnp.cos(obliquity)-yo*jnp.sin(obliquity), xo*jnp.sin(obliquity)+yo*jnp.cos(obliquity)
-        xis, phis = compute_bounds(jnp.array(b).item(),jnp.squeeze(xo_rot),jnp.squeeze(yo_rot),jnp.array(r_eq).item())
+        xis, phis = compute_bounds(jnp.squeeze(b),jnp.squeeze(xo_rot),jnp.squeeze(yo_rot),jnp.squeeze(r_eq))
         g_u = greens_basis_transform(u)
         ns = np.arange(len(g_u))
         lcs = jnp.zeros((len(g_u)))
@@ -50,7 +53,7 @@ def oblate_lightcurve(orbit, u):
             cond = g_u[n]!=0
             sT_vec = Partial(sT, n=n)
             lcs = lcs.at[n].set(
-                jax.lax.cond(cond, sT_vec, zeros, phis[0],phis[1], xis[0],xis[1], jnp.array(b).item(),xo_rot,yo_rot,jnp.array(r_eq).item()))
+                jax.lax.cond(cond, sT_vec, zeros, phis[0],phis[1], xis[0],xis[1], jnp.squeeze(b),xo_rot,yo_rot,jnp.squeeze(r_eq)))
         lcs = jnp.array(lcs).T@g_u
         return lcs
     return impl
