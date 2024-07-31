@@ -13,7 +13,7 @@ from jaxoplanet import units
 import jpu.numpy as jnpu
 
 from .bounds import compute_bounds
-from .solution import sT
+from .solution import sT, pT_under_planet, q_integral
 from jax.tree_util import Partial
 import scipy
 
@@ -28,6 +28,36 @@ def greens_basis_transform(u):
     A2i = jax.experimental.sparse.BCOO.from_scipy_sparse(A2i)
     g_u =  A2i @ p_u
     return g_u / (- p_u @ rT(lmax))
+
+def oblate_lightcurve_fast(orbit, u):
+    obliquity = orbit.body_obliquity.magnitude
+    oblateness = orbit.body_oblateness.magnitude
+    b = 1.-oblateness
+    #convert to r_eq for computing intersection points
+    @vectorize
+    def impl(time):
+        t = time
+        r_eq = (jnpu.sqrt(orbit.radius**2/b) / orbit.central_radius).magnitude
+        xo, yo = orbit.relative_position(t)[0].magnitude,orbit.relative_position(t)[1].magnitude
+        #hacks to get it to work with both keplerian and transit orbit classes
+        #keplerian system wants to return a vector (one for each planet)
+        #transit orbit wants to return a scalar
+        # TODO implement autobatching over multiple planets where keplerian orbit given
+        xo_rot, yo_rot = xo*jnp.cos(obliquity)-yo*jnp.sin(obliquity), xo*jnp.sin(obliquity)+yo*jnp.cos(obliquity)
+        xis, phis = compute_bounds(jnp.squeeze(b),jnp.squeeze(xo_rot),jnp.squeeze(yo_rot),jnp.squeeze(r_eq))
+        g_u = greens_basis_transform(u)
+        ns = np.arange(len(g_u))
+        lcs = jnp.zeros((len(g_u)))
+        zeros = lambda phi1, phi2, b, xo, yo, ro: 0.
+        for n in ns:
+            cond = g_u[n]!=0
+            pT_vec = Partial(pT_under_planet, n=n)
+            lcs = lcs.at[n].set(
+                jax.lax.cond(cond, pT_vec, zeros, phis[0],phis[1], jnp.squeeze(b),xo_rot,yo_rot,jnp.squeeze(r_eq)))
+        lmax = np.floor(np.sqrt(len(g_u))).astype(int)-1
+        lcs = jnp.array(-lcs+q_integral(lmax, xis)).T@g_u
+        return lcs
+    return impl
 
 def oblate_lightcurve(orbit, u):
     obliquity = orbit.body_obliquity.magnitude

@@ -8,6 +8,7 @@ import jax
 from jax import config
 config.update("jax_enable_x64", True)
 import numpy as np
+from jaxoplanet.types import Array
 
 
 def G(n):
@@ -95,6 +96,74 @@ def pT(phi1, phi2, b, xo, yo, ro, n):
     res = primitive(x, y, dx, dy, phi1, phi2, n)
     return res
 
+
 def sT(phi1, phi2, xi1, xi2, b, xo, yo, ro, n):
     """The solution vector for occultations, computed via Green's theorem."""
     return pT(phi1, phi2, b, xo, yo, ro, n) + qT(xi1, xi2, n)
+
+
+####################
+# MUCH FASTER SOLUTION
+####################
+
+def primitive_under_planet(x,y,dx,dy,theta1,theta2, n):
+
+    def func(theta):
+        Gx, Gy = G(n)
+        return Gx(x(theta), y(theta)) * dx(theta) + Gy(x(theta), y(theta)) * dy(theta)
+    
+    return gauss_quad(func, theta1, theta2, n=30)
+
+def pT_under_planet(phi1, phi2, b, xo, yo, ro, n):
+    """Compute the pT integral numerically from its integral definition."""
+    
+    x = lambda phi: ro * jnp.cos(phi) + xo
+    y = lambda phi: ro * b * jnp.sin(phi) + yo
+    
+    dx = lambda phi: -ro * jnp.sin(phi)
+    dy = lambda phi: b * ro * jnp.cos(phi)
+    res = primitive_under_planet(x, y, dx, dy, phi2, phi1, n)
+    return res
+
+def delta(lam: Array) -> Array:
+    return lam[1] - lam[0]
+
+def q_integral(l_max: int, lam: Array) -> Array:
+    c = jnp.cos(lam)
+    s = jnp.sin(lam)
+    h = {
+        (0, 0): delta(lam),
+        (1, 0): delta(s),
+        (0, 1): -delta(c),
+        (1, 1): -delta(c**2)/2
+    }
+
+    def get(u: int, v: int) -> Array:
+        if (u, v) in h:
+            return h[(u, v)]
+        if (u < 2) and (v >=2):
+            term = c**(u+1)*s**(v-1)
+            comp = (- delta(term) + (v-1)*get(u, v-2))
+        else:
+            term = c**(u-1)*s**(v+1)
+            comp = (delta(term) + (u-1)*get(u-2, v))
+        comp /= u + v
+        h[(u, v)] = comp
+        return comp
+
+    U = []
+    for l in range(l_max + 1):  # noqa
+        for m in range(-l, l + 1):
+            if l == 1 and m == 0:
+                U.append((delta(lam)) / 3)
+                continue
+            mu = l - m
+            nu = l + m
+            if (mu % 2) == 0 and (nu % 2) == 0:
+                u = mu // 2 + 2
+                v = nu // 2
+                U.append(get(u, v))
+            else:
+                U.append(0)
+
+    return jnp.stack(U)
