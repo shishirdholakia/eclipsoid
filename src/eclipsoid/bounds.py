@@ -2,6 +2,66 @@ import jax.numpy as jnp
 import jax
 from .utils import zero_safe_sqrt, zero_safe_arctan2, zero_safe_power, roots
 
+def rotate_y(angle):
+    """Rotation matrix around the y-axis by angle theta"""
+    cos_angle = jnp.cos(angle)
+    sin_angle = jnp.sin(angle)
+    return jnp.array([
+        [cos_angle, 0, sin_angle],
+        [0, 1, 0],
+        [-sin_angle, 0, cos_angle]
+    ])
+
+def rotate_z(angle):
+    """Rotation matrix around the z-axis by angle obl"""
+    cos_angle = jnp.cos(angle)
+    sin_angle = jnp.sin(angle)
+    return jnp.array([
+        [cos_angle, -sin_angle, 0],
+        [sin_angle, cos_angle, 0],
+        [0, 0, 1]
+    ])
+
+def rotate_x(angle):
+    """Rotation matrix around the x-axis by angle inc"""
+    cos_angle = jnp.cos(angle)
+    sin_angle = jnp.sin(angle)
+    return jnp.array([
+        [1, 0, 0],
+        [0, cos_angle, -sin_angle],
+        [0, sin_angle, cos_angle]
+    ])
+
+def compute_projected_ellipse(r, f1, f2, theta, obl, inc):
+    # Define the semi-axes of the ellipsoid
+    a = r  # x-axis radius
+    b = r * (1 - f1)  # y-axis radius
+    c = r * (1 - f2)  # z-axis radius
+    
+    # Create the diagonal matrix of the ellipsoid
+    ellipsoid_matrix = jnp.diag(jnp.array([a**2, b**2, c**2]))
+    
+    # Perform the rotations in sequence
+    rotation_matrix = rotate_x(inc) @ rotate_z(obl) @ rotate_y(theta)
+    
+    # Transform the ellipsoid matrix
+    transformed_matrix = rotation_matrix @ ellipsoid_matrix @ rotation_matrix.T
+    
+    # Projection to 2D (z''' axis is pointing towards the observer)
+    # We only care about the x''' and y''' components in 2D projection
+    projected_matrix = transformed_matrix[:2, :2]
+    
+    # Eigenvalues and eigenvectors for the projected ellipse
+    eigenvalues, eigenvectors = jnp.linalg.eigh(projected_matrix)
+    
+    # The square roots of the eigenvalues give the lengths of the semi-axes
+    semi_minor_axis = zero_safe_sqrt(eigenvalues[0])  # smallest eigenvalue
+    semi_major_axis = zero_safe_sqrt(eigenvalues[1])  # largest eigenvalue
+    
+    # Angle of the semi-minor axis with respect to the x-axis
+    angle_major_axis = jnp.arctan2(eigenvectors[1, 1], eigenvectors[0, 1])
+    
+    return semi_major_axis, semi_minor_axis, angle_major_axis
 
 def coeffs_zhu(b, xo, yo, a):
     A = a**2-b**2

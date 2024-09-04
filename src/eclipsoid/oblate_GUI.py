@@ -1,4 +1,3 @@
-from eclipsoid.oblate import OblateSystem, OblateBody, OblateTransitOrbit
 from eclipsoid.light_curve import oblate_lightcurve, legacy_oblate_lightcurve
 
 from jaxoplanet.light_curves import limb_dark_light_curve
