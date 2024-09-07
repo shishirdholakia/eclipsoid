@@ -73,8 +73,9 @@ def limb_dark_oblate_lightcurve(orbit, u, oblateness, obliquity):
         return lcs
     return impl
 
-
-    
+""" 
+Functions for computing light curves taken from jaxoplanet repo and modified to work with ellipsoidal planet sT
+"""
 
 def eclipsoid_light_curve(system: EclipsoidSurfaceSystem, order: int = 30
 ) -> Callable[[Quantity], tuple[Optional[Array], Optional[Array]]]:
@@ -153,7 +154,7 @@ def ellipsoidal_surface_light_curve(surface: Surface,
                                     z:  float = None, 
                                     theta: float = 0.0,
                                     order: int = 20):
-    return circular_surface_light_curve(surface,r, x, y, z, theta)
+    return circular_surface_light_curve(surface,r, x, y, z, theta) # TODO: multiply by projection factor for ellipsoidal area
 
 def surface_light_curve(surface: Surface, 
                                     r: float = None,
@@ -191,7 +192,7 @@ def surface_light_curve(surface: Surface,
         b = jnp.sqrt(jnp.square(x) + jnp.square(y))
         b_rot = jnp.logical_or(jnp.greater_equal(b, 1.0 + r_eq), jnp.less_equal(z, 0.0))
         b_occ = jnp.logical_not(b_rot)
-        
+        theta_z = jnp.arctan2(x, y)
 
         # trick to avoid nan `x=jnp.where...` grad caused by nan sT
         r = jnp.where(b_rot, 0.0, r)
@@ -217,7 +218,7 @@ def surface_light_curve(surface: Surface,
             surface.inc,
             surface.obl,
             theta + 0, #surface.phase,
-            theta_z,
+            theta_proj,
             surface.y.todense(),
         )
 

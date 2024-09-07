@@ -13,7 +13,7 @@ from jaxoplanet import units
 import jpu.numpy as jnpu
 
 from ..bounds import compute_bounds
-from ..solution import sT, pT_under_planet, q_integral
+from ..solution import pT, sT, q_integral
 from jax.tree_util import Partial
 import scipy
 
@@ -63,11 +63,11 @@ def oblate_lightcurve_dict(params,t):
         zeros = lambda phi1, phi2, b, xo, yo, ro: 0.
         for n in ns:
             cond = g_u[n]!=0
-            pT_vec = Partial(pT_under_planet, n=n)
+            pT_vec = Partial(pT, n=n)
             lcs = lcs.at[n].set(
                 jax.lax.cond(cond, pT_vec, zeros, phis[0],phis[1], jnp.squeeze(b),xo_rot,yo_rot,jnp.squeeze(r_eq)))
         lmax = np.floor(np.sqrt(len(g_u))).astype(int)-1
-        lcs = jnp.array(-lcs+q_integral(lmax, xis)).T@g_u
+        lcs = jnp.array(lcs+q_integral(lmax, xis)).T@g_u
         return lcs
     return impl(t)
 
