@@ -62,7 +62,7 @@ class EllipsoidalOrbitalBody(OrbitalBody):
             self.surface = Surface()
     
 
-class EclipsoidSurfaceSystem(System):
+class EclipsoidSystem(System):
     """
     Rewrite of jaxoplanet's surface body to optionally handle ellipsoidal bodies
     """
@@ -110,14 +110,14 @@ class EclipsoidSurfaceSystem(System):
         body: Optional[Union[Body, SurfaceBody, EllipsoidalBody]] = None,
         surface: Optional[Surface] = None,
         **kwargs: Any,
-    ) -> "EclipsoidSurfaceSystem":
+    ) -> "EclipsoidSystem":
         if body is None:
             body = EllipsoidalBody(**kwargs)
         if surface is None:
             surface = getattr(body, "surface", None)
         bodies = list(zip(self.bodies, self.body_surfaces)) + [(body, surface)]
         
-        return EclipsoidSurfaceSystem(
+        return EclipsoidSystem(
             central=self.central,
             central_surface=self.central_surface,
             bodies=bodies,

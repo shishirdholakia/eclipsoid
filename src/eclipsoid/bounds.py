@@ -33,6 +33,7 @@ def rotate_x(angle):
     ])
 
 def compute_projected_ellipse(r, f1, f2, theta, obl, inc):
+    
     # Define the semi-axes of the ellipsoid
     a = r  # x-axis radius
     b = r * (1 - f1)  # y-axis radius
@@ -85,12 +86,30 @@ def coeffs(b, xo, yo, ro):
     return jnp.array([A, B, C, D, E])
 
 def compute_bounds(b, xo, yo, ro):
+
+    ###
+    # IF yo is close to 0, use a quadratic solver to patch the singularities in the quartic solver at yo=0
+    ###
+    A0 = 1 - (b**2)
+    B0 = - (2 * b**2) * xo
+    C0 = b**2*ro**2 - b**2 * xo**2 + yo - 1
+    discriminant = B0**2 - 4 * A0 * C0
+    quad_roots = -jnp.array([(-B0 + zero_safe_sqrt(discriminant)) / (2 * A0),
+                            (-B0 - zero_safe_sqrt(discriminant)) / (2 * A0)])
+
+    #construct a size-4 array containing the real root if it exists, or pad the array with 1j
+    x_quad_root = jnp.tile(jnp.where(jnp.abs(quad_roots)<1.0, quad_roots, jnp.array([2j]).repeat(2)), 2)
+    y_quad_root = jnp.where(jnp.abs(x_quad_root)<1.0, jnp.array([zero_safe_sqrt(1 - quad_roots**2), -zero_safe_sqrt(1 - quad_roots**2)]).flatten(),jnp.array([2j]).repeat(4))
     
+    ###
+    # Use the quartic solver to find the roots of the quartic equation
+    ###
     coeff = jnp.array(coeffs(b, xo, yo, ro),dtype=complex)
-    x_roots=roots(coeff,strip_zeros=False)
+    x_roots=jnp.where(jnp.abs(yo)>1e-5, roots(coeff,strip_zeros=False), x_quad_root)
     #plug into the ellipse to avoid the +/- ambiguity with sqrt(1-x_roots**2)
     #but how to fix the precision issue for yo->0?
-    y_roots = jnp.where(jnp.abs(yo)<1e-6,zero_safe_sqrt(1-x_roots**2),(-b**2*ro**2 + b**2*(x_roots - xo)**2 - x_roots**2 + yo**2 + 1)/(2*yo))
+    y_roots = jnp.where(jnp.abs(yo)>1e-5, (-b**2*ro**2 + b**2*(x_roots - xo)**2 - x_roots**2 + yo**2 + 1)/(2*yo), y_quad_root)
+    #y_roots = jnp.where(jnp.abs(yo)<1e-6,zero_safe_sqrt(1-x_roots**2),(-b**2*ro**2 + b**2*(x_roots - xo)**2 - x_roots**2 + yo**2 + 1)/(2*yo))
     reals = jnp.sum(jnp.abs(x_roots.imag)<1e-10)
     
     def no_ints(x_roots, y_roots, b, xo, yo, ro):

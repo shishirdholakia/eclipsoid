@@ -73,7 +73,7 @@ def primitive(x,y,dx,dy,theta1,theta2, n):
         Gx, Gy = G(n)
         return Gx(x(theta), y(theta)) * dx(theta) + Gy(x(theta), y(theta)) * dy(theta)
     
-    return gauss_quad(func, theta1, theta2, n=100)
+    return gauss_quad(func, theta1, theta2, n=30)
     
     
 def qT(xi1, xi2, n):
@@ -158,15 +158,15 @@ def solution_vector(l_max: int) -> Callable[[Array, Array, Array, Array, Array],
 
     @jax.jit
     @partial(jnp.vectorize, signature=f"(),(),(),(),()->({n_max})")
-    def impl(f:Array, theta: Array, xo:Array, yo:Array, ro:Array) -> Array:
+    def impl(b:Array, theta: Array, xo:Array, yo:Array, ro:Array) -> Array:
         xo_rot, yo_rot = xo*jnp.cos(theta)-yo*jnp.sin(theta), xo*jnp.sin(theta)+yo*jnp.cos(theta)
-        xis, phis = compute_bounds(1-f,xo_rot,yo_rot,ro)
+        xis, phis = compute_bounds(b,xo_rot,yo_rot,ro)
         Q = q_integral(l_max, xis)
         P = []
         for l in range(l_max + 1):  # noqa
             for m in range(-l, l + 1):
                 n = l**2 + l + m
-                P.append(pT(phis[0], phis[1], 1.0-f, xo_rot, yo_rot, ro, n=n))
+                P.append(pT(phis[0], phis[1], b, xo_rot, yo_rot, ro, n=n))
         P = jnp.stack(P)
                 
         return -(Q + P)

@@ -23,7 +23,7 @@ from jaxoplanet.units import quantity_input, unit_registry as ureg
 
 from .bounds import compute_bounds, compute_projected_ellipse
 from .solution import sT, pT, q_integral, solution_vector
-from .ellipsoid import EclipsoidSurfaceSystem
+from .ellipsoid import EclipsoidSystem
 from jax.tree_util import Partial
 from functools import partial
 import scipy
@@ -77,7 +77,7 @@ def limb_dark_oblate_lightcurve(orbit, u, oblateness, obliquity):
 Functions for computing light curves taken from jaxoplanet repo and modified to work with ellipsoidal planet sT
 """
 
-def eclipsoid_light_curve(system: EclipsoidSurfaceSystem, order: int = 30
+def eclipsoid_light_curve(system: EclipsoidSystem, order: int = 30
 ) -> Callable[[Quantity], tuple[Optional[Array], Optional[Array]]]:
     
     central_bodies_lc = jax.vmap(
@@ -186,7 +186,7 @@ def surface_light_curve(surface: Surface,
         design_matrix_p = rT_deg
     # occulting body
     else:
-        r_eq, b_proj, theta_proj = compute_projected_ellipse(r, oblateness, prolateness, body_theta, body_obl, body_inc)
+        r_eq, b_proj, theta_proj = compute_projected_ellipse(r, oblateness, prolateness, body_theta, body_obl, body_inc-jnp.pi/2)
         #numerical stability for oblateness of 0
         b_proj = b_proj/r_eq
         b = jnp.sqrt(jnp.square(x) + jnp.square(y))
@@ -201,7 +201,7 @@ def surface_light_curve(surface: Surface,
         #fixing numerical stability issues for oblateness of 0
         b_proj = jnp.where(close_to_1, 1.0, b_proj)
         theta_proj = jnp.where(close_to_1, jnp.pi/2, theta_proj)
-        sT = solution_vector(surface.deg)(1.-b_proj, theta_proj, x, y, r_eq)
+        sT = solution_vector(surface.deg)(b_proj, theta_proj, x, y, r_eq)
         if surface.deg > 0:
             A2 = scipy.sparse.linalg.inv(A2_inv(surface.deg))
             A2 = jax.experimental.sparse.BCOO.from_scipy_sparse(A2)
