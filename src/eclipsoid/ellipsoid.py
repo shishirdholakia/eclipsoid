@@ -13,14 +13,14 @@ from jaxoplanet import units
 from jaxoplanet.object_stack import ObjectStack
 from jaxoplanet.types import Quantity
 from jaxoplanet.units import unit_registry as ureg
-
+from functools import partial
 
 from collections.abc import Callable, Iterable, Sequence
 from typing import Any, Optional, Union
 import jpu.numpy as jnpu
 
 
-class EllipsoidalBody(SurfaceBody):
+class EllipsoidalBody(Body):
     """ An ellipsoidal body
     Parameters:
     oblateness: flattening parameter along the rotational axis
@@ -40,6 +40,7 @@ class EllipsoidalBody(SurfaceBody):
     def __check_init__(self) -> None:
         if ((self.oblateness is None) and (self.prolateness is None)):
             raise ValueError("Either oblateness or prolateness must be specified")
+        
 
 class EllipsoidalOrbitalBody(OrbitalBody):
     oblateness: Optional[Quantity] = units.field(units=ureg.dimensionless)

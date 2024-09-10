@@ -6,10 +6,10 @@ config.update("jax_enable_x64", True)
 import numpy as np
 from jaxoplanet import orbits
 
-from jaxoplanet.experimental.starry.basis import A1, A2_inv, U0
+from jaxoplanet.experimental.starry.basis import A1, A2_inv, U
 from jaxoplanet.experimental.starry.pijk import Pijk
 from jaxoplanet.experimental.starry.light_curves import rT
-from jaxoplanet.experimental.starry.light_curves import map_light_curve as circular_surface_light_curve
+from jaxoplanet.experimental.starry.light_curves import surface_light_curve as circular_surface_light_curve
 from jaxoplanet.experimental.starry.rotation import left_project
 from jaxoplanet.experimental.starry.surface import Surface
 from jaxoplanet.light_curves.utils import vectorize
@@ -32,8 +32,8 @@ import scipy
 compute_bounds_oblate = jax.jit(jax.vmap(compute_bounds, in_axes=(None, 0,0,None)))
 
 def greens_basis_transform(u):
-    U = jnp.array([1, *u])
-    p_u = (U @ U0(len(u)))
+    U0 = jnp.array([1, *u])
+    p_u = (U0 @ U(len(u)))
     lmax = np.floor(np.sqrt(len(p_u))).astype(int)-1
     A2i = scipy.sparse.linalg.inv(A2_inv(lmax))
     A2i = jax.experimental.sparse.BCOO.from_scipy_sparse(A2i)
@@ -217,7 +217,7 @@ def surface_light_curve(surface: Surface,
             surface.ydeg,
             surface.inc,
             surface.obl,
-            theta + 0, #surface.phase,
+            theta + surface.phase,
             theta_proj,
             surface.y.todense(),
         )
@@ -227,7 +227,7 @@ def surface_light_curve(surface: Surface,
         p_u = Pijk.from_dense(jnp.array([1]))
     else:
         u = jnp.array([1, *surface.u])
-        p_u = Pijk.from_dense(u @ U0(surface.udeg), degree=surface.udeg)
+        p_u = Pijk.from_dense(u @ U(surface.udeg), degree=surface.udeg)
 
     # surface map * limb darkening map
     A1_val = jax.experimental.sparse.BCOO.from_scipy_sparse(A1(surface.ydeg))
