@@ -6,7 +6,7 @@ config.update("jax_enable_x64", True)
 import numpy as np
 from jaxoplanet import orbits
 
-from jaxoplanet.experimental.starry.basis import U0, A2_inv
+from jaxoplanet.experimental.starry.basis import U, A2_inv
 from jaxoplanet.experimental.starry.light_curves import rT
 from jaxoplanet.light_curves.utils import vectorize
 from jaxoplanet import units
@@ -21,8 +21,8 @@ import scipy
 compute_bounds_oblate = jax.jit(jax.vmap(compute_bounds, in_axes=(None, 0,0,None)))
 
 def greens_basis_transform(u):
-    U = jnp.array([1, *u])
-    p_u = (U @ U0(len(u)))
+    U0 = jnp.array([1, *u])
+    p_u = (U0 @ U(len(u)))
     lmax = np.floor(np.sqrt(len(p_u))).astype(int)-1
     A2i = scipy.sparse.linalg.inv(A2_inv(lmax))
     A2i = jax.experimental.sparse.BCOO.from_scipy_sparse(A2i)
@@ -43,7 +43,7 @@ def oblate_lightcurve_dict(params,t):
         t (Array): _description_
     """
     b = 1-params['f']
-    orbit = orbits.TransitOrbit(period=params['period'], time_transit=0.0, radius=params['radius']*jnp.sqrt(b), impact_param=params['bo'], duration=params['duration'])
+    orbit = orbits.TransitOrbit(period=params['period'], time_transit=0.0, radius_ratio=params['radius']*jnp.sqrt(b), impact_param=params['bo'], duration=params['duration'])
     
     @vectorize
     def impl(time):
