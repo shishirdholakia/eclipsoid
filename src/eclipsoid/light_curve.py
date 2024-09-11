@@ -149,6 +149,7 @@ def legacy_oblate_lightcurve_fast(params,t):
         params (Dict): dictionary containing parameters for the transit model including:
             u: quadratic limb darkening coefficients
             period: period in days
+            t0: time of transit in days
             radius: equatorial radius of the planet in units of stellar radius
             bo: impact parameter
             f: oblateness coefficient
