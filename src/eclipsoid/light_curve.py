@@ -115,6 +115,7 @@ def legacy_oblate_lightcurve(params,t):
         params (Dict): dictionary containing parameters for the transit model including:
             u: quadratic limb darkening coefficients
             period: period in days
+            t0: time of transit in days
             radius: equatorial radius of the planet in units of stellar radius
             bo: impact parameter
             f: oblateness coefficient
@@ -122,7 +123,7 @@ def legacy_oblate_lightcurve(params,t):
         t (Array): _description_
     """
     b = 1-params['f']
-    orbit = orbits.TransitOrbit(period=params['period'], time_transit=0.0, radius=params['radius']*jnp.sqrt(b), impact_param=params['bo'], duration=params['duration'])
+    orbit = orbits.TransitOrbit(period=params['period'], time_transit=params['t0'], radius=params['radius']*jnp.sqrt(b), impact_param=params['bo'], duration=params['duration'])
     xo, yo = orbit.relative_position(t)[0].magnitude,orbit.relative_position(t)[1].magnitude
     
     xo_rot, yo_rot = xo*jnp.cos(params['theta'])-yo*jnp.sin(params['theta']), xo*jnp.sin(params['theta'])+yo*jnp.cos(params['theta'])
