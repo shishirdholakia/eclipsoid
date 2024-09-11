@@ -156,7 +156,7 @@ def legacy_oblate_lightcurve_fast(params,t):
         t (Array): _description_
     """
     b = 1-params['f']
-    orbit = orbits.TransitOrbit(period=params['period'], time_transit=0.0, radius=params['radius']*jnp.sqrt(b), impact_param=params['bo'], duration=params['duration'])
+    orbit = orbits.TransitOrbit(period=params['period'], time_transit=params['t0'], radius=params['radius']*jnp.sqrt(b), impact_param=params['bo'], duration=params['duration'])
     
     @vectorize
     def impl(time):
