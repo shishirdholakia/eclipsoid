@@ -31,7 +31,6 @@ from jax import custom_jvp
 from jax import lax
 from jax.numpy.linalg import solve
 from functools import partial
-
 # -----------------------------------------------------------------------------
 # Functions related to a generalized solution to a polynomial's roots that
 # supports higher order derivatives
@@ -99,6 +98,25 @@ def eig(matrix: jnp.ndarray, eps: float = EPS_EIG) -> Tuple[jnp.ndarray, jnp.nda
     """
     del eps
     return eig_jvp(matrix)
+    
+def _eig_host(matrix: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    """Wraps jnp.linalg.eig so that it can be jit-ed on a machine with GPUs."""
+
+    def _eig_cpu(matrix: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        # We force this computation to be performed on the cpu by jit-ing and
+        # explicitly specifying the device.
+        with jax.default_device(jax.devices("cpu")[0]):
+            return jax.jit(eig)(matrix)
+
+    return jax.pure_callback(
+        _eig_cpu,
+        (
+            jnp.ones(matrix.shape[:-1], dtype=complex),  # Eigenvalues
+            jnp.ones(matrix.shape, dtype=complex),  # Eigenvectors
+        ),
+        matrix.astype(complex),
+        vectorized=True,
+    )
 
 
 
@@ -170,7 +188,7 @@ def _roots_no_zeros(p: Array) -> Array:
     return array([], dtype=dtypes.to_complex_dtype(p.dtype))
   A = diag(ones((p.size - 2,), p.dtype), -1)
   A = A.at[0, :].set(-p[1:] / p[0])
-  eigvals, eigvecs = eig(A)
+  eigvals, eigvecs = _eig_host(A)
   return eigvals
 
 
