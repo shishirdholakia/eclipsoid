@@ -1,7 +1,6 @@
 from eclipsoid.light_curve import limb_dark_oblate_lightcurve
 from jaxoplanet.light_curves import limb_dark_light_curve
 from jaxoplanet.orbits import TransitOrbit
-import jax
 import jax.numpy as jnp
 import pytest
 
