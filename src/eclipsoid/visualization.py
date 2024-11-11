@@ -88,5 +88,9 @@ def show_surface(
             radius=radius,
             n=n,
             white_contour=white_contour,
+            ax=ax,
         )
     ax.axis(False)
+
+def animate_system(system, t):
+    raise NotImplementedError

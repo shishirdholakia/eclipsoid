@@ -125,7 +125,7 @@ def eclipsoid_light_curve(system: EclipsoidSystem, order: int = 30
                     (zos / central_radius).magnitude,
                     system.surface_vmap(lambda surface: surface.inc)(),
                     system.surface_vmap(lambda surface: surface.obl)(),
-                    system.surface_vmap(lambda surface: surface.rotational_phase(time).magnitude)(),
+                    system.surface_vmap(lambda surface: surface.rotational_phase(time).magnitude+surface.phase)(),
                     theta,
                     order,
                 )
@@ -154,7 +154,9 @@ def ellipsoidal_surface_light_curve(surface: Surface,
                                     z:  float = None, 
                                     theta: float = 0.0,
                                     order: int = 20):
-    return circular_surface_light_curve(surface,r, x, y, z, theta) # TODO: multiply by projection factor for ellipsoidal area
+    r_eq, b_proj, theta_proj = compute_projected_ellipse(r, oblateness, prolateness, theta+surface.phase, surface.obl, surface.inc-jnp.pi/2)
+    ellipse_area_factor = (r_eq*b_proj)/r**2
+    return circular_surface_light_curve(surface,r, x, y, z, theta)*ellipse_area_factor # TODO: multiply by projection factor for ellipsoidal area
 
 def surface_light_curve(surface: Surface, 
                                     r: float = None,

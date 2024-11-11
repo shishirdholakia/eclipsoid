@@ -145,9 +145,15 @@ def graticule(
     white_contour=True,
     radius: float = 1.0,
     n=6,
+    ax=None,
     **kwargs,
 ):
     import matplotlib.pyplot as plt
+
+    if ax is None:
+        ax = plt.gca()
+        if ax is None:
+            ax = plt.subplot(111)
 
     kwargs.setdefault("c", kwargs.pop("color", "k"))
     kwargs.setdefault("lw", kwargs.pop("linewidth", 1))
@@ -159,9 +165,9 @@ def graticule(
     
     lat, lon = lon_lat_lines(pts=pts, radius=radius, n=n, oblateness=oblateness, prolateness=prolateness)
     lat = rotate_lines(lat, inc, obl, theta)
-    plot_lines(lat, **kwargs)
+    plot_lines(lat, ax=ax,**kwargs)
     lon = rotate_lines(lon, inc, obl, theta)
-    plot_lines(lon, **kwargs)
+    plot_lines(lon, ax=ax, **kwargs)
     theta = np.linspace(0, 2 * np.pi, 2 * pts)
 
     # contour
@@ -169,6 +175,6 @@ def graticule(
     x = sqrt_radius * np.cos(theta) * np.cos(-theta_proj) - sqrt_radius * b_proj * np.sin(theta) * np.sin(-theta_proj)
     y = sqrt_radius * np.cos(theta) * np.sin(-theta_proj) + sqrt_radius * b_proj * np.sin(theta) * np.cos(-theta_proj)
     
-    plt.plot(x, y, **kwargs)
+    ax.plot(x, y, **kwargs)
     if white_contour:
-        plt.plot(x, y, c="w", lw=3)
+        ax.plot(x, y, c="w", lw=3)
