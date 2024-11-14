@@ -125,7 +125,7 @@ def eclipsoid_light_curve(system: EclipsoidSystem, order: int = 30
                     (zos / central_radius).magnitude,
                     system.surface_vmap(lambda surface: surface.inc)(),
                     system.surface_vmap(lambda surface: surface.obl)(),
-                    system.surface_vmap(lambda surface: surface.rotational_phase(time).magnitude+surface.phase)(),
+                    system.surface_vmap(lambda surface: surface.rotational_phase(time.magnitude))(),
                     theta,
                     order,
                 )
