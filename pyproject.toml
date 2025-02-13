@@ -4,6 +4,7 @@ version = "0.0.2"
 description = "Transit models for oblate planets in Jax"
 readme = "README.md"
 requires-python =">=3.9"
+license = { text = "MIT License" }
 authors = [
   {name="Shishir Dholakia", email="dholakia.shishir@gmail.com"},
   {name = "Shashank Dholakia", email = "s.dholakia@uq.edu.au"},
