@@ -6,12 +6,12 @@ config.update("jax_enable_x64", True)
 import numpy as np
 from jaxoplanet import orbits
 
-from jaxoplanet.experimental.starry.basis import A1, A2_inv, U
-from jaxoplanet.experimental.starry.pijk import Pijk
-from jaxoplanet.experimental.starry.light_curves import rT
-from jaxoplanet.experimental.starry.light_curves import surface_light_curve as circular_surface_light_curve
-from jaxoplanet.experimental.starry.rotation import left_project
-from jaxoplanet.experimental.starry.surface import Surface
+from jaxoplanet.starry.core.basis import A1, A2_inv, U
+from jaxoplanet.starry.core.polynomials import Pijk
+from jaxoplanet.starry.light_curves import rT
+from jaxoplanet.starry.light_curves import surface_light_curve as circular_surface_light_curve
+from jaxoplanet.starry.core.rotation import left_project
+from jaxoplanet.starry.surface import Surface
 from jaxoplanet.light_curves.utils import vectorize
 from jaxoplanet import units
 import jpu.numpy as jnpu

@@ -6,8 +6,8 @@ config.update("jax_enable_x64", True)
 import numpy as np
 from jaxoplanet import orbits
 
-from jaxoplanet.experimental.starry.basis import U, A2_inv
-from jaxoplanet.experimental.starry.light_curves import rT
+from jaxoplanet.starry.basis import U, A2_inv
+from jaxoplanet.starry.light_curves import rT
 from jaxoplanet.light_curves.utils import vectorize
 from jaxoplanet import units
 import jpu.numpy as jnpu

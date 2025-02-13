@@ -1,9 +1,9 @@
 import numpy as np
 
-from jaxoplanet.experimental.starry.surface import Surface
+from jaxoplanet.starry.surface import Surface
 from eclipsoid.plotting_utils import graticule
 from .bounds import compute_projected_ellipse
-from jaxoplanet.experimental.starry.ylm import Ylm
+from jaxoplanet.starry.ylm import Ylm
 from eclipsoid.plotting_utils import render_oblate_surface
 
 

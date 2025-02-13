@@ -7,8 +7,8 @@ import numpy as np
 from jaxoplanet import orbits
 from jaxoplanet.orbits.keplerian import Central, Body, System, OrbitalBody
 
-from jaxoplanet.experimental.starry.surface import Surface
-from jaxoplanet.experimental.starry.orbit import SurfaceBody, SurfaceSystem
+from jaxoplanet.starry.surface import Surface
+from jaxoplanet.starry.orbit import SurfaceBody, SurfaceSystem
 from jaxoplanet import units
 from jaxoplanet.object_stack import ObjectStack
 from jaxoplanet.types import Quantity

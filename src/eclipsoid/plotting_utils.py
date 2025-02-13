@@ -5,9 +5,9 @@ import jax.numpy as jnp
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from jaxoplanet.experimental.starry.basis import A1, poly_basis, U
-from jaxoplanet.experimental.starry.rotation import left_project
-from jaxoplanet.experimental.starry.pijk import Pijk
+from jaxoplanet.starry.core.basis import A1, poly_basis, U
+from jaxoplanet.starry.core.rotation import left_project
+from jaxoplanet.starry.core.polynomials import Pijk
 
 from .bounds import compute_projected_ellipse
 

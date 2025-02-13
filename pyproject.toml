@@ -10,7 +10,7 @@ authors = [
 ]
 keywords = ["python", "exoplanet", "machine-learning", "jax", "autodiff", "differentiable", "transit", "telescope"]
 urls = {repository = "https://github.com/shishirdholakia/jax0planet/"}
-dependencies = ["jax", "jaxlib", "scipy", "numpy", "jaxoplanet>=0.0.2", "zodiax>=0.4.1"]
+dependencies = ["scipy", "numpy", "jaxoplanet", "zodiax>=0.4.1", "jaxlib<=0.4.32"]
 classifiers=[
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
