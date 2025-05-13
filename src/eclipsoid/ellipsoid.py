@@ -9,10 +9,8 @@ from jaxoplanet.orbits.keplerian import Central, Body, System, OrbitalBody
 
 from jaxoplanet.starry.surface import Surface
 from jaxoplanet.starry.orbit import SurfaceBody, SurfaceSystem
-from jaxoplanet import units
 from jaxoplanet.object_stack import ObjectStack
-from jaxoplanet.types import Quantity
-from jaxoplanet.units import unit_registry as ureg
+from jaxoplanet.types import Scalar
 from functools import partial
 
 from collections.abc import Callable, Iterable, Sequence
@@ -27,13 +25,9 @@ class EllipsoidalBody(Body):
     prolateness: flattening parameter along the z-axis by default at theta0
     """
     
-    oblateness: Optional[Quantity] = units.field(
-    default=0.0, units=ureg.dimensionless
-    )
+    oblateness: Scalar | None = 0.0,
     
-    prolateness: Optional[Quantity] = units.field(
-    default=0.0, units=ureg.dimensionless
-    )
+    prolateness: Scalar | None = 0.0,
     
     surface: Optional[Surface] = None
     
@@ -43,8 +37,8 @@ class EllipsoidalBody(Body):
         
 
 class EllipsoidalOrbitalBody(OrbitalBody):
-    oblateness: Optional[Quantity] = units.field(units=ureg.dimensionless)
-    prolateness: Optional[Quantity] = units.field(units=ureg.dimensionless)
+    oblateness: Scalar | None = 0.0,
+    prolateness: Scalar | None = 0.0,
     surface: Optional[Surface] = None
     
     def __init__(
@@ -125,11 +119,11 @@ class EclipsoidSystem(System):
         )
         
     @property
-    def oblateness(self) -> Quantity:
+    def oblateness(self) -> Scalar:
         return self.body_vmap(lambda body: body.oblateness)()
     
     @property
-    def prolateness(self) -> Quantity:
+    def prolateness(self) -> Scalar:
         return self.body_vmap(lambda body: body.prolateness)()
 
     def surface_vmap(

@@ -1,6 +1,6 @@
 # Eclipsoid
 
-`eclipsoid` is a package for fast and differentiable transit models of oblate and prolate planets in [JAX](https://docs.jax.dev/en/latest/) built on top of the [`jaxoplanet`](https://jax.exoplanet.codes/en/latest/) package. Our API largely follows `jaxoplanet`; you can read the [`jaxoplanet` docs](https://jax.exoplanet.codes/en/latest/) for info on how to model a basic exoplanet transits.
+`eclipsoid` is a package for fast and differentiable transit models of non-spherical planets in [JAX](https://docs.jax.dev/en/latest/) built on top of the [`jaxoplanet`](https://jax.exoplanet.codes/en/latest/) package. Our API largely follows `jaxoplanet`; you can read the [`jaxoplanet` docs](https://jax.exoplanet.codes/en/latest/) for info on how to model a basic exoplanet transits.
 
 ![](three_oblateness.gif)
 

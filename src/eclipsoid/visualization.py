@@ -91,6 +91,32 @@ def show_surface(
             ax=ax,
         )
     ax.axis(False)
+    
 
 def animate_system(system, t):
-    raise NotImplementedError
+    """ System animation function (rewrite from system.show in starry)
+
+    Args:
+        system (EclipsoidSystem): A system in eclipsoid
+        t (Array): time array
+
+
+    """
+    # Render the maps & get the orbital positions
+    
+    #render the primary map
+    
+    #render the secondary maps
+    
+    
+    # Convert to units of the primary radius
+
+
+    # Set up the plot
+
+    # Render the first frame
+    
+    # Animation
+
+
+    raise NotImplementedError("Animation not implemented yet.")

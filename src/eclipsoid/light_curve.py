@@ -13,13 +13,10 @@ from jaxoplanet.starry.light_curves import surface_light_curve as circular_surfa
 from jaxoplanet.starry.core.rotation import left_project
 from jaxoplanet.starry.surface import Surface
 from jaxoplanet.light_curves.utils import vectorize
-from jaxoplanet import units
-import jpu.numpy as jnpu
 
 from collections.abc import Callable
-from jaxoplanet.types import Array, Quantity
+from jaxoplanet.types import Array, Scalar
 from typing import Any, Optional, Union
-from jaxoplanet.units import quantity_input, unit_registry as ureg
 
 from .bounds import compute_bounds, compute_projected_ellipse
 from .solution import sT, pT, q_integral, solution_vector
@@ -48,16 +45,16 @@ def limb_dark_oblate_lightcurve(orbit, u, oblateness, obliquity):
     @vectorize
     def impl(time):
         t = time
-        r_eq = (jnpu.sqrt(orbit.radius**2/b) / orbit.central_radius).magnitude
+        r_eq = (jnp.sqrt(orbit.radius**2/b) / orbit.central_radius)
         #TODO: check this works with central_radius != 0
         xo, yo, zo = orbit.relative_position(t)
         #hack to prevent eclipse when planet is behind star
-        r_eq = jnp.where(jnp.less_equal(zo.magnitude, 0.0), 0.0, r_eq)
+        r_eq = jnp.where(jnp.less_equal(zo, 0.0), 0.0, r_eq)
         #hacks to get it to work with both keplerian and transit orbit classes
         #keplerian system wants to return a vector (one for each planet)
         #transit orbit wants to return a scalar
         # TODO implement autobatching over multiple planets where keplerian orbit given
-        xo_rot, yo_rot = xo.magnitude*jnp.cos(obliquity)-yo.magnitude*jnp.sin(obliquity), xo.magnitude*jnp.sin(obliquity)+yo.magnitude*jnp.cos(obliquity)
+        xo_rot, yo_rot = xo*jnp.cos(obliquity)-yo*jnp.sin(obliquity), xo*jnp.sin(obliquity)+yo*jnp.cos(obliquity)
         xis, phis = compute_bounds(jnp.squeeze(b),jnp.squeeze(xo_rot),jnp.squeeze(yo_rot),jnp.squeeze(r_eq))
         g_u = greens_basis_transform(u)
         ns = np.arange(len(g_u))
@@ -78,7 +75,7 @@ Functions for computing light curves taken from jaxoplanet repo and modified to 
 """
 
 def eclipsoid_light_curve(system: EclipsoidSystem, order: int = 30
-) -> Callable[[Quantity], tuple[Optional[Array], Optional[Array]]]:
+) -> Callable[[Scalar], tuple[Optional[Array], Optional[Array]]]:
     
     central_bodies_lc = jax.vmap(
         surface_light_curve, in_axes=(None, 0, 0, 0, 0, 0, 0, 0, 0, 0, None, None)
@@ -88,44 +85,43 @@ def eclipsoid_light_curve(system: EclipsoidSystem, order: int = 30
         if surface is None:
             return 0.0
         else:
-            theta = surface.rotational_phase(time.magnitude)
+            theta = surface.rotational_phase(time)
             return ellipsoidal_surface_light_curve(
                 surface,
-                (system.central.radius / radius).magnitude,
-                oblateness.magnitude,
-                prolateness.magnitude,
-                (x / radius).magnitude,
-                (y / radius).magnitude,
-                (z / radius).magnitude,
+                (system.central.radius / radius),
+                oblateness,
+                prolateness,
+                (x / radius),
+                (y / radius),
+                (z / radius),
                 theta,
                 order,
             )
             
-    @quantity_input(time=ureg.day)
     @vectorize
-    def light_curve_impl(time: Quantity) -> Array:
+    def light_curve_impl(time: Scalar) -> Array:
         if system.central_surface is None:
             central_light_curves = jnp.array([0.0])
         else:
-            theta = system.central_surface.rotational_phase(time.magnitude)
+            theta = system.central_surface.rotational_phase(time)
             central_radius = system.central.radius
             central_phase_curve = surface_light_curve(
                 system.central_surface, theta=theta, order=order
             )
             if len(system.bodies) > 0:
                 xos, yos, zos = system.relative_position(time)
-                n = len(xos.magnitude)
+                n = len(xos)
                 central_light_curves = central_bodies_lc(
                     system.central_surface,
-                    (system.radius / central_radius).magnitude,
-                    system.oblateness.magnitude,
-                    system.prolateness.magnitude,
-                    (xos / central_radius).magnitude,
-                    (yos / central_radius).magnitude,
-                    (zos / central_radius).magnitude,
+                    (system.radius / central_radius),
+                    system.oblateness,
+                    system.prolateness,
+                    (xos / central_radius),
+                    (yos / central_radius),
+                    (zos / central_radius),
                     system.surface_vmap(lambda surface: surface.inc)(),
                     system.surface_vmap(lambda surface: surface.obl)(),
-                    system.surface_vmap(lambda surface: surface.rotational_phase(time.magnitude))(),
+                    system.surface_vmap(lambda surface: surface.rotational_phase(time))(),
                     theta,
                     order,
                 )

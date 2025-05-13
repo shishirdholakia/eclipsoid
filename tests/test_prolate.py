@@ -2,13 +2,12 @@ from eclipsoid.ellipsoid import EclipsoidSystem, EllipsoidalBody
 from eclipsoid.light_curve import eclipsoid_light_curve
 
 from jaxoplanet.starry.surface import Surface
-from jaxoplanet.units import unit_registry as ureg
 from jaxoplanet.orbits.keplerian import System, Central
 from jaxoplanet.starry.orbit import SurfaceSystem
 from jaxoplanet.starry.ylm import Ylm
 from jaxoplanet.starry.light_curves import light_curve
 
-
+import astropy.units as u
 import jax.numpy as jnp
 import jax
 import pytest
@@ -17,7 +16,7 @@ import pytest
 ({
     'm_star': 1.37843833,
     'r_star': 1.458,
-    'm_planet': 1.157,
+    'm_planet': (1.157*u.M_jup).to(u.M_sun).value,
     'period':1.7,
     't0': 0.0,
     'inc': jnp.radians(88.0),
@@ -34,10 +33,10 @@ def test_eclipsoid_spherical(params, t):
     central = Central(radius=params['r_star'], mass=params['m_star'])
     ylm = Ylm.from_dense(jnp.array([1.0]))
     body_surface = Surface(y=ylm, inc=params['inc'], obl=0.0, period=params['period'], amplitude=0.0, normalize=False, phase=-2*jnp.pi*params['t0']/params['period']+jnp.pi)
-    eclipsoid_system = EclipsoidSystem(central, central_surface).add_body(radius=params['rp']*ureg.R_sun, mass=params['m_planet']*ureg.M_jup, period=params['period'], surface=body_surface, inclination=params['inc'],
+    eclipsoid_system = EclipsoidSystem(central, central_surface).add_body(radius=params['rp'], mass=params['m_planet'], period=params['period'], surface=body_surface, inclination=params['inc'],
                                                                     oblateness=params['oblateness'], prolateness=params['prolateness'], time_transit=params['t0'])
     #add one since exoplanet/jaxoplanet convention is to return 0 as the mean
-    sphere_system = SurfaceSystem(central, central_surface).add_body(radius=params['rp']*ureg.R_sun, mass=params['m_planet']*ureg.M_jup, period=params['period'], surface=body_surface, inclination=params['inc'], time_transit=params['t0'])
+    sphere_system = SurfaceSystem(central, central_surface).add_body(radius=params['rp'], mass=params['m_planet'], period=params['period'], surface=body_surface, inclination=params['inc'], time_transit=params['t0'])
     
     lc = light_curve(sphere_system)(t).sum(axis=1)
     
@@ -49,7 +48,7 @@ def test_eclipsoid_spherical(params, t):
 ({
     'm_star': 1.37843833,
     'r_star': 1.458,
-    'm_planet': 1.157,
+    'm_planet': (1.157*u.M_jup).to(u.M_sun).value,
     'period':1.7,
     't0': 0.0,
     'inc': jnp.radians(88.0),
@@ -61,7 +60,7 @@ def test_eclipsoid_spherical(params, t):
 ({
     'm_star': 1.37843833,
     'r_star': 1.458,
-    'm_planet': 1.157,
+    'm_planet': (1.157*u.M_jup).to(u.M_sun).value,
     'period':1.7,
     't0': 0.0,
     'inc': jnp.radians(88.0),
@@ -73,7 +72,7 @@ def test_eclipsoid_spherical(params, t):
 ({
     'm_star': 1.37843833,
     'r_star': 1.458,
-    'm_planet': 1.157,
+    'm_planet': (1.157*u.M_jup).to(u.M_sun).value,
     'period':1.7,
     't0': 0.0,
     'inc': jnp.radians(88.0),
@@ -89,7 +88,7 @@ def test_eclipsoid_grads(params, t):
         central = Central(radius=params['r_star'], mass=params['m_star'])
         ylm = Ylm.from_dense(jnp.array([1.0]))
         body_surface = Surface(y=ylm, inc=params['inc'], obl=0.0, period=params['period'], amplitude=0.0, normalize=False, phase=-2*jnp.pi*params['t0']/params['period']+jnp.pi)
-        eclipsoid_system = EclipsoidSystem(central, central_surface).add_body(radius=params['rp']*ureg.R_sun, mass=params['m_planet']*ureg.M_jup, period=params['period'], surface=body_surface, inclination=params['inc'],
+        eclipsoid_system = EclipsoidSystem(central, central_surface).add_body(radius=params['rp'], mass=params['m_planet'], period=params['period'], surface=body_surface, inclination=params['inc'],
                                                                         oblateness=params['oblateness'], prolateness=params['prolateness'], time_transit=params['t0'])
         return eclipsoid_light_curve(eclipsoid_system)(t).sum(axis=1)
     grad_func = jax.jit(jax.jacrev(func))
