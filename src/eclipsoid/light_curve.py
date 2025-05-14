@@ -6,39 +6,50 @@ config.update("jax_enable_x64", True)
 import numpy as np
 from jaxoplanet import orbits
 
-from jaxoplanet.experimental.starry.basis import U0, A2_inv
-from jaxoplanet.experimental.starry.light_curves import rT
+from jaxoplanet.starry.core.basis import A1, A2_inv, U
+from jaxoplanet.starry.core.polynomials import Pijk
+from jaxoplanet.starry.light_curves import rT
+from jaxoplanet.starry.light_curves import surface_light_curve as circular_surface_light_curve
+from jaxoplanet.starry.core.rotation import left_project
+from jaxoplanet.starry.surface import Surface
 from jaxoplanet.light_curves.utils import vectorize
-from jaxoplanet import units
-import jpu.numpy as jnpu
 
-from .bounds import compute_bounds
-from .solution import sT, pT_under_planet, q_integral
+from collections.abc import Callable
+from jaxoplanet.types import Array, Scalar
+from typing import Any, Optional, Union
+
+from .bounds import compute_bounds, compute_projected_ellipse
+from .solution import sT, pT, q_integral, solution_vector
+from .ellipsoid import EclipsoidSystem
 from jax.tree_util import Partial
+from functools import partial
 import scipy
 
     
 compute_bounds_oblate = jax.jit(jax.vmap(compute_bounds, in_axes=(None, 0,0,None)))
 
 def greens_basis_transform(u):
-    U = jnp.array([1, *u])
-    p_u = (U @ U0(len(u)))
+    U0 = jnp.array([1, *u])
+    p_u = (U0 @ U(len(u)))
     lmax = np.floor(np.sqrt(len(p_u))).astype(int)-1
     A2i = scipy.sparse.linalg.inv(A2_inv(lmax))
     A2i = jax.experimental.sparse.BCOO.from_scipy_sparse(A2i)
     g_u =  A2i @ p_u
     return g_u / (- p_u @ rT(lmax))
 
-def oblate_lightcurve(orbit, u):
-    obliquity = orbit.body_obliquity.magnitude
-    oblateness = orbit.body_oblateness.magnitude
+def limb_dark_oblate_lightcurve(orbit, u, oblateness, obliquity):
+    """Compute a simple limb darkened light curve where the planet is oblate (not rotating) and neither the star nor planet have a time variable surface map"""
+
     b = 1.-oblateness
     #convert to r_eq for computing intersection points
     @vectorize
     def impl(time):
         t = time
-        r_eq = (jnpu.sqrt(orbit.radius**2/b) / orbit.central_radius).magnitude
-        xo, yo = orbit.relative_position(t)[0].magnitude,orbit.relative_position(t)[1].magnitude
+        r_eq = (jnp.sqrt(orbit.radius**2/b) / orbit.central_radius)
+        #TODO: check this works with central_radius != 0
+        xo, yo, zo = orbit.relative_position(t)
+        #hack to prevent eclipse when planet is behind star
+        r_eq = jnp.where(jnp.less_equal(zo, 0.0), 0.0, r_eq)
         #hacks to get it to work with both keplerian and transit orbit classes
         #keplerian system wants to return a vector (one for each planet)
         #transit orbit wants to return a scalar
@@ -51,136 +62,176 @@ def oblate_lightcurve(orbit, u):
         zeros = lambda phi1, phi2, b, xo, yo, ro: 0.
         for n in ns:
             cond = g_u[n]!=0
-            pT_vec = Partial(pT_under_planet, n=n)
+            pT_func = Partial(pT, n=n)
             lcs = lcs.at[n].set(
-                jax.lax.cond(cond, pT_vec, zeros, phis[0],phis[1], jnp.squeeze(b),xo_rot,yo_rot,jnp.squeeze(r_eq)))
+                jax.lax.cond(cond, pT_func, zeros, phis[0],phis[1], jnp.squeeze(b),xo_rot,yo_rot,jnp.squeeze(r_eq)))
         lmax = np.floor(np.sqrt(len(g_u))).astype(int)-1
-        lcs = jnp.array(-lcs+q_integral(lmax, xis)).T@g_u
+        lcs = jnp.array(lcs+q_integral(lmax, xis)).T@g_u
         return lcs
     return impl
 
-def oblate_lightcurve_numerical(orbit, u):
-    obliquity = orbit.body_obliquity.magnitude
-    oblateness = orbit.body_oblateness.magnitude
-    b = 1.-oblateness
-    #convert to r_eq for computing intersection points
+""" 
+Functions for computing light curves taken from jaxoplanet repo and modified to work with ellipsoidal planet sT
+"""
+
+def eclipsoid_light_curve(system: EclipsoidSystem, order: int = 30
+) -> Callable[[Scalar], tuple[Optional[Array], Optional[Array]]]:
+    
+    central_bodies_lc = jax.vmap(
+        surface_light_curve, in_axes=(None, 0, 0, 0, 0, 0, 0, 0, 0, 0, None, None)
+    )
+    @partial(system.surface_vmap, in_axes=(0, 0, 0, 0, 0, 0, None))
+    def compute_body_light_curve(surface, radius, oblateness, prolateness, x, y, z, time):
+        if surface is None:
+            return 0.0
+        else:
+            theta = surface.rotational_phase(time)
+            return ellipsoidal_surface_light_curve(
+                surface,
+                (system.central.radius / radius),
+                oblateness,
+                prolateness,
+                (x / radius),
+                (y / radius),
+                (z / radius),
+                theta,
+                order,
+            )
+            
     @vectorize
-    def impl(time):
-        t = time
-        r_eq = (jnpu.sqrt(orbit.radius**2/b) / orbit.central_radius).magnitude
-        xo, yo = orbit.relative_position(t)[0].magnitude,orbit.relative_position(t)[1].magnitude
-        #hacks to get it to work with both keplerian and transit orbit classes
-        #keplerian system wants to return a vector (one for each planet)
-        #transit orbit wants to return a scalar
-        # TODO implement autobatching over multiple planets where keplerian orbit given
-        xo_rot, yo_rot = xo*jnp.cos(obliquity)-yo*jnp.sin(obliquity), xo*jnp.sin(obliquity)+yo*jnp.cos(obliquity)
-        xis, phis = compute_bounds(jnp.squeeze(b),jnp.squeeze(xo_rot),jnp.squeeze(yo_rot),jnp.squeeze(r_eq))
-        g_u = greens_basis_transform(u)
-        ns = np.arange(len(g_u))
-        lcs = jnp.zeros((len(g_u)))
-        zeros = lambda phi1, phi2, xi1, xi2, b, xo, yo, ro: 0.
-        for n in ns:
-            cond = g_u[n]!=0
-            sT_vec = Partial(sT, n=n)
-            lcs = lcs.at[n].set(
-                jax.lax.cond(cond, sT_vec, zeros, phis[0],phis[1], xis[0],xis[1], jnp.squeeze(b),xo_rot,yo_rot,jnp.squeeze(r_eq)))
-        lcs = jnp.array(lcs).T@g_u
-        return lcs
-    return impl
-    
-    
-def ellipsoid_lightcurve(orbit, t):
-    raise NotImplementedError("Ellipsoid lightcurve not implemented yet")
-    
+    def light_curve_impl(time: Scalar) -> Array:
+        if system.central_surface is None:
+            central_light_curves = jnp.array([0.0])
+        else:
+            theta = system.central_surface.rotational_phase(time)
+            central_radius = system.central.radius
+            central_phase_curve = surface_light_curve(
+                system.central_surface, theta=theta, order=order
+            )
+            if len(system.bodies) > 0:
+                xos, yos, zos = system.relative_position(time)
+                n = len(xos)
+                central_light_curves = central_bodies_lc(
+                    system.central_surface,
+                    (system.radius / central_radius),
+                    system.oblateness,
+                    system.prolateness,
+                    (xos / central_radius),
+                    (yos / central_radius),
+                    (zos / central_radius),
+                    system.surface_vmap(lambda surface: surface.inc)(),
+                    system.surface_vmap(lambda surface: surface.obl)(),
+                    system.surface_vmap(lambda surface: surface.rotational_phase(time))(),
+                    theta,
+                    order,
+                )
 
-#sT_vec = jax.jit(jax.vmap(sT,in_axes=(0, 0, 0,0,None,0,0,None,None)), static_argnums=8)
+                if n > 1 and central_light_curves is not None:
+                    central_light_curves = central_light_curves.sum(
+                        0
+                    ) - central_phase_curve * (n - 1)
+                    central_light_curves = jnp.expand_dims(central_light_curves, 0)
 
-def legacy_greens_basis_transform(u):
-    
-    """ Returns the star's flux in Green's basis
-    given quadratic limb darkening coefficients"""
-    assert u.shape[0]==2
-    g = jnp.zeros(9)
-    g = g.at[0].set(1-u[0]-2*u[1])
-    g = g.at[2].set(u[0] + 2*u[1])
-    g = g.at[4].set(u[1]/3)
-    g = g.at[8].set(u[1])
-    #I don't know why the normalization constant is negative
-    return g/(-jnp.pi*(1-u[0]/3-u[1]/6))
+                body_light_curves = compute_body_light_curve(
+                    system.radius, system.oblateness, system.prolateness, -xos, -yos, -zos, time
+                )
 
-def legacy_oblate_lightcurve(params,t):
-    """_summary_
+                return jnp.hstack([central_light_curves, body_light_curves])
+            else:
+                return jnp.array([central_phase_curve])
+    return light_curve_impl
 
-    Args:
-        params (Dict): dictionary containing parameters for the transit model including:
-            u: quadratic limb darkening coefficients
-            period: period in days
-            t0: time of transit in days
-            radius: equatorial radius of the planet in units of stellar radius
-            bo: impact parameter
-            f: oblateness coefficient
-            duration: duration of transit in days
-        t (Array): _description_
-    """
-    b = 1-params['f']
-    orbit = orbits.TransitOrbit(period=params['period'], time_transit=params['t0'], radius=params['radius']*jnp.sqrt(b), impact_param=params['bo'], duration=params['duration'])
-    xo, yo = orbit.relative_position(t)[0].magnitude,orbit.relative_position(t)[1].magnitude
+def ellipsoidal_surface_light_curve(surface: Surface, 
+                                    r: float = None,
+                                    oblateness: float = 0.0,
+                                    prolateness:  float = 0.0,
+                                    x:  float = None, 
+                                    y:  float = None, 
+                                    z:  float = None, 
+                                    theta: float = 0.0,
+                                    order: int = 20):
+    r_eq, b_proj, theta_proj = compute_projected_ellipse(r, oblateness, prolateness, theta+surface.phase, surface.obl, surface.inc-jnp.pi/2)
+    ellipse_area_factor = (r_eq*b_proj)/r**2
+    return circular_surface_light_curve(surface,r, x, y, z, theta)*ellipse_area_factor # TODO: multiply by projection factor for ellipsoidal area
+
+def surface_light_curve(surface: Surface, 
+                                    r: float = None,
+                                    oblateness: float = 0.0,
+                                    prolateness:  float = 0.0,
+                                    x:  float = None, 
+                                    y:  float = None, 
+                                    z:  float = None,
+                                    body_inc: float = 0.0,
+                                    body_obl: float = 0.0,
+                                    body_theta: float = 0.0,
+                                    theta: float = 0.0,
+                                    order: int = 20):
     
-    xo_rot, yo_rot = xo*jnp.cos(params['theta'])-yo*jnp.sin(params['theta']), xo*jnp.sin(params['theta'])+yo*jnp.cos(params['theta'])
-    xis, phis = compute_bounds_oblate(b,xo_rot,yo_rot,params['radius'])
-    g = greens_basis_transform(params['u'])
-    ns = np.arange(len(g))
-    lcs = jnp.zeros((len(g),len(t)))
     
-    zeros = lambda phi1, phi2, xi1, xi2, b, xo, yo, ro: jnp.zeros(len(xo))
-    for n in ns:
-        cond = g[n]!=0
-        sT_vec = jax.jit(jax.vmap(Partial(sT, n=n),in_axes=(0, 0, 0,0,None,0,0,None)))
-        lcs = lcs.at[n].set(
-            jax.lax.cond(cond, sT_vec, zeros, phis[:,0],phis[:,1], xis[:,0],xis[:,1], b,xo_rot,yo_rot,params['radius']))
+    rT_deg = rT(surface.deg)
+    x = 0.0 if x is None else x
+    y = 0.0 if y is None else y
+    z = 0.0 if z is None else z
+    r_eq, b_proj, theta_proj = 0, 0, 0
+    sT = jnp.zeros(surface.deg)
+    xis, phis = jnp.zeros(2), jnp.zeros(2)
+    xo_rot, yo_rot = 0, 0
+    
+    # no occulting body
+    if r is None:
+        b_rot = True
+        theta_z = 0.0
+        design_matrix_p = rT_deg
+    # occulting body
+    else:
+        r_eq, b_proj, theta_proj = compute_projected_ellipse(r, oblateness, prolateness, body_theta, body_obl, body_inc-jnp.pi/2)
+        #numerical stability for oblateness of 0
+        b_proj = b_proj/r_eq
+        b = jnp.sqrt(jnp.square(x) + jnp.square(y))
+        b_rot = jnp.logical_or(jnp.greater_equal(b, 1.0 + r_eq), jnp.less_equal(z, 0.0))
+        b_occ = jnp.logical_not(b_rot)
+        theta_z = jnp.arctan2(x, y)
+
+        # trick to avoid nan `x=jnp.where...` grad caused by nan sT
+        r = jnp.where(b_rot, 0.0, r)
+        close_to_1 = jnp.isclose(b_proj, 1.0, rtol=10*jnp.finfo(jnp.float64).eps)
         
-    lcs = jnp.array(lcs).T@g
-    
-    return lcs
+        #fixing numerical stability issues for oblateness of 0
+        b_proj = jnp.where(close_to_1, 1.0, b_proj)
+        theta_proj = jnp.where(close_to_1, jnp.pi/2, theta_proj)
+        sT = solution_vector(surface.deg)(b_proj, theta_proj, x, y, r_eq)
+        if surface.deg > 0:
+            A2 = scipy.sparse.linalg.inv(A2_inv(surface.deg))
+            A2 = jax.experimental.sparse.BCOO.from_scipy_sparse(A2)
+        else:
+            A2 = jnp.array([[1]])
 
-def legacy_oblate_lightcurve_fast(params,t):
-    """_summary_
+        design_matrix_p = jnp.where(b_occ, sT @ A2, rT_deg)
 
-    Args:
-        params (Dict): dictionary containing parameters for the transit model including:
-            u: quadratic limb darkening coefficients
-            period: period in days
-            t0: time of transit in days
-            radius: equatorial radius of the planet in units of stellar radius
-            bo: impact parameter
-            f: oblateness coefficient
-            duration: duration of transit in days
-        t (Array): _description_
-    """
-    b = 1-params['f']
-    orbit = orbits.TransitOrbit(period=params['period'], time_transit=params['t0'], radius=params['radius']*jnp.sqrt(b), impact_param=params['bo'], duration=params['duration'])
-    
-    @vectorize
-    def impl(time):
-        t = time
-        r_eq = (jnpu.sqrt(orbit.radius**2/b) / orbit.central_radius).magnitude
-        xo, yo = orbit.relative_position(t)[0].magnitude,orbit.relative_position(t)[1].magnitude
-        #hacks to get it to work with both keplerian and transit orbit classes
-        #keplerian system wants to return a vector (one for each planet)
-        #transit orbit wants to return a scalar
-        # TODO implement autobatching over multiple planets where keplerian orbit given
-        xo_rot, yo_rot = xo*jnp.cos(params['theta'])-yo*jnp.sin(params['theta']), xo*jnp.sin(params['theta'])+yo*jnp.cos(params['theta'])
-        xis, phis = compute_bounds(jnp.squeeze(b),jnp.squeeze(xo_rot),jnp.squeeze(yo_rot),jnp.squeeze(r_eq))
-        g_u = greens_basis_transform(params['u'])
-        ns = np.arange(len(g_u))
-        lcs = jnp.zeros((len(g_u)))
-        zeros = lambda phi1, phi2, b, xo, yo, ro: 0.
-        for n in ns:
-            cond = g_u[n]!=0
-            pT_vec = Partial(pT_under_planet, n=n)
-            lcs = lcs.at[n].set(
-                jax.lax.cond(cond, pT_vec, zeros, phis[0],phis[1], jnp.squeeze(b),xo_rot,yo_rot,jnp.squeeze(r_eq)))
-        lmax = np.floor(np.sqrt(len(g_u))).astype(int)-1
-        lcs = jnp.array(-lcs+q_integral(lmax, xis)).T@g_u
-        return lcs
-    return impl(t)
+    if surface.ydeg == 0:
+        rotated_y = surface.y.todense()
+    else:
+        rotated_y = left_project(
+            surface.ydeg,
+            surface.inc,
+            surface.obl,
+            theta + surface.phase,
+            theta_proj,
+            surface.y.todense(),
+        )
+
+    # limb darkening
+    if surface.udeg == 0:
+        p_u = Pijk.from_dense(jnp.array([1]))
+    else:
+        u = jnp.array([1, *surface.u])
+        p_u = Pijk.from_dense(u @ U(surface.udeg), degree=surface.udeg)
+
+    # surface map * limb darkening map
+    A1_val = jax.experimental.sparse.BCOO.from_scipy_sparse(A1(surface.ydeg))
+    p_y = Pijk.from_dense(A1_val @ rotated_y, degree=surface.ydeg)
+    p_y = p_y * p_u
+
+    norm = np.pi / (p_u.tosparse() @ rT(surface.udeg))
+
+    return surface.amplitude * (p_y.tosparse() @ design_matrix_p) * norm

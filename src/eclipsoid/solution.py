@@ -9,7 +9,9 @@ from jax import config
 config.update("jax_enable_x64", True)
 import numpy as np
 from jaxoplanet.types import Array
-
+from collections.abc import Callable
+from functools import partial
+from .bounds import compute_bounds
 
 def G(n):
     """
@@ -71,7 +73,7 @@ def primitive(x,y,dx,dy,theta1,theta2, n):
         Gx, Gy = G(n)
         return Gx(x(theta), y(theta)) * dx(theta) + Gy(x(theta), y(theta)) * dy(theta)
     
-    return gauss_quad(func, theta1, theta2, n=100)
+    return gauss_quad(func, theta1, theta2, n=30)
     
     
 def qT(xi1, xi2, n):
@@ -106,24 +108,6 @@ def sT(phi1, phi2, xi1, xi2, b, xo, yo, ro, n):
 # MUCH FASTER SOLUTION
 ####################
 
-def primitive_under_planet(x,y,dx,dy,theta1,theta2, n):
-
-    def func(theta):
-        Gx, Gy = G(n)
-        return Gx(x(theta), y(theta)) * dx(theta) + Gy(x(theta), y(theta)) * dy(theta)
-    
-    return gauss_quad(func, theta1, theta2, n=30)
-
-def pT_under_planet(phi1, phi2, b, xo, yo, ro, n):
-    """Compute the pT integral numerically from its integral definition."""
-    
-    x = lambda phi: ro * jnp.cos(phi) + xo
-    y = lambda phi: ro * b * jnp.sin(phi) + yo
-    
-    dx = lambda phi: -ro * jnp.sin(phi)
-    dy = lambda phi: b * ro * jnp.cos(phi)
-    res = primitive_under_planet(x, y, dx, dy, phi2, phi1, n)
-    return res
 
 def delta(lam: Array) -> Array:
     return lam[1] - lam[0]
@@ -167,3 +151,24 @@ def q_integral(l_max: int, lam: Array) -> Array:
                 U.append(0)
 
     return jnp.stack(U)
+
+
+def solution_vector(l_max: int) -> Callable[[Array, Array, Array, Array, Array], Array]:
+    n_max = l_max**2 + 2 * l_max + 1
+
+    @jax.jit
+    @partial(jnp.vectorize, signature=f"(),(),(),(),()->({n_max})")
+    def impl(b:Array, theta: Array, xo:Array, yo:Array, ro:Array) -> Array:
+        xo_rot, yo_rot = xo*jnp.cos(theta)-yo*jnp.sin(theta), xo*jnp.sin(theta)+yo*jnp.cos(theta)
+        xis, phis = compute_bounds(b,xo_rot,yo_rot,ro)
+        Q = q_integral(l_max, xis)
+        P = []
+        for l in range(l_max + 1):  # noqa
+            for m in range(-l, l + 1):
+                n = l**2 + l + m
+                P.append(pT(phis[0], phis[1], b, xo_rot, yo_rot, ro, n=n))
+        P = jnp.stack(P)
+                
+        return -(Q + P)
+
+    return impl

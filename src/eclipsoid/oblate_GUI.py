@@ -1,5 +1,4 @@
-from eclipsoid.oblate import OblateSystem, OblateBody, OblateTransitOrbit
-from eclipsoid.light_curve import oblate_lightcurve, legacy_oblate_lightcurve
+from eclipsoid.light_curve import limb_dark_oblate_lightcurve
 
 from jaxoplanet.light_curves import limb_dark_light_curve
 from jaxoplanet.orbits import TransitOrbit
@@ -14,19 +13,19 @@ import matplotlib.pyplot as plt
 from jax import config
 config.update("jax_enable_x64", True)
 
-oblate_lightcurve = jax.jit(legacy_oblate_lightcurve)
 
 params = {'period':300.456,
           'radius':0.1,
           'u':jnp.array([0.3,0.2]),
           'f':0.1,
+          't0':0.0,
           'bo':0.8,
           'duration':0.4,
           'theta':0.0
 }
 
 orbit = TransitOrbit(
-    period=params['period'], time_transit=0., duration=params['duration'], impact_param=params['bo'], radius=params['radius']
+    period=params['period'], time_transit=0., duration=params['duration'], impact_param=params['bo'], radius_ratio=params['radius']
 )
 
 # Create the main window
@@ -46,7 +45,7 @@ canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 # Draw the initial light curves
 t = jnp.linspace(-0.3, 0.3, 200)
 lc = jax.vmap(limb_dark_light_curve(orbit, params['u']))(t)
-oblate_lc = oblate_lightcurve(params, t)
+oblate_lc = jax.jit(limb_dark_oblate_lightcurve(orbit, params['u'], params['f'], params['theta']))(t)
 ax0.plot(t, oblate_lc, label='oblate_lightcurve', lw=1)
 ax0.plot(t, lc+1.0, label='circular_lightcurve', lw=1)
 ax1.plot(t, (oblate_lc-lc-1)*1e6, label='oblate - circular')
@@ -60,10 +59,10 @@ def update(val):
     params['f'] = s_f.get()
     params['radius'] = s_radius.get()/jnp.sqrt(1-params['f'])
     orbit = TransitOrbit(
-        period=params['period'], time_transit=0., duration=params['duration'], impact_param=s_impact.get(), radius=s_radius.get()
+        period=params['period'], time_transit=0., duration=params['duration'], impact_param=s_impact.get(), radius_ratio=s_radius.get()
     )
     lc = jax.vmap(limb_dark_light_curve(orbit, params['u']))(t)
-    oblate_lc = oblate_lightcurve(params, t=t)
+    oblate_lc = jax.jit(limb_dark_oblate_lightcurve(orbit, params['u'], params['f'], params['theta']))(t)
     ax0.cla()
     ax1.cla()
     ax0.plot(t, oblate_lc, label='oblate_lightcurve',lw=1)

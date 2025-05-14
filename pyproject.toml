@@ -1,16 +1,17 @@
 [project]
 name = "eclipsoid"
-version = "0.0.1"
+version = "0.0.2"
 description = "Transit models for oblate planets in Jax"
 readme = "README.md"
 requires-python =">=3.9"
+license = { text = "MIT License" }
 authors = [
   {name="Shishir Dholakia", email="dholakia.shishir@gmail.com"},
   {name = "Shashank Dholakia", email = "s.dholakia@uq.edu.au"},
 ]
 keywords = ["python", "exoplanet", "machine-learning", "jax", "autodiff", "differentiable", "transit", "telescope"]
 urls = {repository = "https://github.com/shishirdholakia/jax0planet/"}
-dependencies = ["jax", "jaxlib", "scipy", "numpy", "jaxoplanet>=0.0.2", "zodiax>=0.4.1"]
+dependencies = ["scipy", "numpy", "jaxoplanet", "zodiax>=0.4.1", "jaxlib<=0.4.32"]
 classifiers=[
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
