@@ -3,25 +3,19 @@ import jax.numpy as jnp
 import jax
 from numpy.polynomial.legendre import leggauss
 
-
 import numpy as np
 
-from jax import jit
 from jax import lax
 from jax._src import dtypes
 from jax._src import core
 from jax._src.numpy.lax_numpy import (
-    arange, argmin, array, asarray, atleast_1d, concatenate, convolve,
-    diag, dot, finfo, full, ones, outer, roll, trim_zeros,
-    trim_zeros_tol, vander, zeros)
-from jax._src.numpy.ufuncs import maximum, true_divide, sqrt
+    arange, argmin, array, atleast_1d,
+    diag, ones,roll)
 from jax._src.numpy.reductions import all
-from jax._src.numpy import linalg
 from jax._src.numpy.util import (
-    check_arraylike, promote_dtypes, promote_dtypes_inexact, _where)
+    check_arraylike, promote_dtypes_inexact, _where)
 from jax._src.typing import Array, ArrayLike
 
-from jax import pure_callback
 from typing import Tuple
 
 
