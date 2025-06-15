@@ -15,8 +15,6 @@ from functools import partial
 
 from collections.abc import Callable, Iterable, Sequence
 from typing import Any, Optional, Union
-import jpu.numpy as jnpu
-
 
 class EllipsoidalBody(Body):
     """ An ellipsoidal body
