@@ -113,31 +113,31 @@ def scipy_surface_min_intensity(surface: Surface, oversample: int = 4, lmax: int
     min_coord = None
     
     for coord in grid:
-        #try:
+        try:
             res = minimize(objective, np.array(coord), method="BFGS")
             if res.success and res.fun < min_val:
                 min_val = res.fun
                 min_coord = res.x
-        #except Exception as e:
-            #print(f"Minimization failed at {coord} with error: {e}")
-            #continue
+        except Exception as e:
+            print(f"Minimization failed at {coord} with error: {e}")
+            continue
 
     return min_coord, min_val
 
 
 # -------- Grid (equal-area-ish Fibonacci; tiny + deterministic) --------
-def mollweide_grid(oversample: int, lmax: int):
+def fibonacci_grid(oversample: int, lmax: int):
     n = oversample * (lmax ** 2)
     i = jnp.arange(n)
     phi = (1.0 + jnp.sqrt(5.0)) / 2.0
-    theta = jnp.arccos(1.0 - 2.0 * (i + 0.5) / n)        # colatitude ∈ [0, π]
-    lon = (2.0 * jnp.pi) * ((i / phi) % 1.0)             # [0, 2π)
-    lat = (jnp.pi / 2.0) - theta                         # latitude ∈ [-π/2, π/2]
+    theta = jnp.arccos(1.0 - 2.0 * (i + 0.5) / n)        # colatitude in [0, pi]
+    lon = (2.0 * jnp.pi) * ((i / phi) % 1.0)             # [0, 2pi)
+    lat = (jnp.pi / 2.0) - theta                         # latitude in [-pi/2, pi/2]
     return jnp.stack([lat, lon], axis=-1)                # (n, 2)
 
 # -------- Helpers to keep angles in-range (differentiable) -------------
 def _wrap_lon(lon):
-    # Wrap to [0, 2π)
+    # Wrap to [0, 2pi)
     two_pi = 2.0 * jnp.pi
     return lon - two_pi * jnp.floor(lon / two_pi)
 
@@ -150,12 +150,10 @@ def _project_coord(x):
     lon = _wrap_lon(x[1])
     return jnp.array([lat, lon])
 
-
 # -------- Fixed-iteration damped Newton in 2D (lat, lon) --------------
 @partial(jax.jit, static_argnames=("oversample", "lmax", "newton_iters", "damping", "step"))
-def surface_min_intensity(surface, oversample: int, lmax: int,
-                         newton_iters: int = 12, damping: float = 1e-3, step: float = 1.0,
-                         tau_softmin: float = None):
+def surface_min_intensity(surface: Surface, oversample: int, lmax: int,
+                         newton_iters: int = 12, damping: float = 1e-3, step: float = 1.0):
     """
     Fully JAX, end-to-end differentiable approximate global min:
       1) seed from tiny equal-area grid
@@ -163,15 +161,14 @@ def surface_min_intensity(surface, oversample: int, lmax: int,
       3) take global min across seeds
 
     Args:
-      surface: jaxoplanet Surface-like object with .intensity(lat, lon)
+      surface: jaxoplanet Surface object with .intensity(lat, lon)
       oversample, lmax: define N = oversample * lmax^2 seeds
       newton_iters: fixed Newton iterations per seed (no line search)
       damping: Levenberg-Marquardt diagonal added to Hessian
       step: Newton step scaling (e.g., 1.0 or 0.5)
-      tau_softmin: if not None, additionally return soft-min value with temperature tau_softmin
 
     Returns:
-      (lat_min, lon_min), min_val, (optional soft_min_val)
+      (lat_min, lon_min), min_val
     """
 
     # Scalar objective taking a 2-vector x = [lat, lon]
@@ -200,26 +197,17 @@ def surface_min_intensity(surface, oversample: int, lmax: int,
         return xT, f(xT)
 
     # Seeds
-    seeds = mollweide_grid(oversample, lmax)  # (N,2)
+    seeds = fibonacci_grid(oversample, lmax)  # (N,2)
 
     # Run Newton from all seeds in parallel, no Python loops, fixed iteration count
     xs, vals = jax.vmap(newton_one_seed)(seeds)  # xs: (N,2), vals: (N,)
 
-    # Take global min (subgradient is OK almost everywhere; for extra smoothness use softmin)
+    # Take global min
     i_min = jnp.argmin(vals)
     x_min = xs[i_min]
     v_min = vals[i_min]
 
-    if tau_softmin is None:
-        return x_min, v_min
-    else:
-        # Smooth surrogate for min (good for stable gradients in penalties)
-        # softmin_tau(z) = -tau * log( sum_i exp(-z_i / tau) )
-        # As tau -> 0, softmin -> min
-        z = vals
-        m = jnp.min(z)
-        soft = -tau_softmin * (jnp.log(jnp.sum(jnp.exp(-(z - m)/tau_softmin))) + m / tau_softmin)
-        return x_min, v_min, soft
+    return x_min, v_min
 
 
 ### Spherical Harmonic Transform Utilities with S2FFT
