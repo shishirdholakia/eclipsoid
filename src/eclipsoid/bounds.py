@@ -165,7 +165,7 @@ def compute_bounds_near_zero(b, xo, yo, ro):
     # Use the quartic solver to find the roots of the quartic equation
     ###
     coeff = jnp.array(coeffs(b, xo, yo, ro),dtype=complex)
-    x_roots=jnp.where(jnp.abs(yo)>1e-5, roots(coeff,strip_zeros=False), x_quad_root)
+    x_roots=jnp.where(jnp.abs(yo)>1e-5, jnp.roots(coeff,strip_zeros=False), x_quad_root)
     #plug into the ellipse to avoid the +/- ambiguity with sqrt(1-x_roots**2)
     #but how to fix the precision issue for yo->0?
     y_roots = jnp.where(jnp.abs(yo)>1e-5, (-b**2*ro**2 + b**2*(x_roots - xo)**2 - x_roots**2 + yo**2 + 1)/(2*yo), y_quad_root)

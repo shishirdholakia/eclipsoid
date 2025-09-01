@@ -104,7 +104,7 @@ def scipy_surface_min_intensity(surface: Surface, oversample: int = 4, lmax: int
     """Find global minimum intensity on the surface."""
     grid = mollweide_grid(oversample, lmax)
 
-    @jit
+    @jax.jit
     def objective(coord):
         lat, lon = coord
         return surface.intensity(lat, lon)
