@@ -107,6 +107,7 @@ def show_surface_anim(
     animate: bool = False,
     interval: int = 100,
     repeat: bool = True,
+    colorbar: bool = False,
     **kwargs,
 ):
     """
@@ -174,7 +175,7 @@ def show_surface_anim(
             surface.obl,
             surface.inc - np.pi / 2,
         )
-        img = ax.imshow(
+        im = ax.imshow(
             render_oblate_surface(
                 res,
                 theta=theta_i,
@@ -201,6 +202,8 @@ def show_surface_anim(
         ax.axis(False)
         ax.set_xlim(-r_minor+prolateness-oblateness, r_minor-prolateness+oblateness)
         ax.set_ylim(-r_minor+prolateness-oblateness, r_minor-prolateness+oblateness)
+        if colorbar:
+            plt.colorbar(im, ax=ax)
 
     if animate and theta_array.size > 1:
         anim = FuncAnimation(
@@ -214,7 +217,6 @@ def show_surface_anim(
         
     else:
         render_frame(theta_array[0])
-        return img # Return the axis in static case
 
 
 def animate_system(system, t):

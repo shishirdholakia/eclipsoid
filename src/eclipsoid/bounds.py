@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 import jax
-from .utils import zero_safe_sqrt, zero_safe_arctan2, zero_safe_power, roots
+from .utils import zero_safe_sqrt, zero_safe_arctan2
 
 def rotate_y(angle):
     """Rotation matrix around the y-axis by angle theta"""
@@ -88,7 +88,7 @@ def coeffs(b, xo, yo, ro):
 def compute_bounds(b, xo, yo, ro):
     
     coeff = jnp.array(coeffs(b, xo, yo, ro),dtype=complex)
-    x_roots=roots(coeff,strip_zeros=False)
+    x_roots = jnp.roots(coeff,strip_zeros=False)
     #plug into the ellipse to avoid the +/- ambiguity with sqrt(1-x_roots**2)
     #but how to fix the precision issue for yo->0?
     y_roots = jnp.where(jnp.abs(yo)<1e-6,zero_safe_sqrt(1-x_roots**2),(-b**2*ro**2 + b**2*(x_roots - xo)**2 - x_roots**2 + yo**2 + 1)/(2*yo))
