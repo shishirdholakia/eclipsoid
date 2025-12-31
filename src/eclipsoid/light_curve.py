@@ -150,9 +150,9 @@ def ellipsoidal_surface_light_curve(surface: Surface,
                                     z:  float = None, 
                                     theta: float = 0.0,
                                     order: int = 20):
-    r_eq, b_proj, theta_proj = compute_projected_ellipse(r, oblateness, prolateness, theta+surface.phase, surface.obl, surface.inc-jnp.pi/2)
-    ellipse_area_factor = (r_eq*b_proj)/r**2 #squish correction
-    return circular_surface_light_curve(surface,r/ellipse_area_factor, x, y, z, theta)*ellipse_area_factor # TODO: multiply by projection factor for ellipsoidal area
+    r_eq, b_proj, theta_proj = compute_projected_ellipse(1.0, oblateness, prolateness, theta+surface.phase, surface.obl, surface.inc-jnp.pi/2)
+    ellipse_area_factor = (r_eq*b_proj) #squish correction
+    return circular_surface_light_curve(surface,r/ellipse_area_factor, x/r_eq, y, z, theta)*ellipse_area_factor # TODO: compute full ellipsoidal occultor light curve
 
 def surface_light_curve(surface: Surface, 
                                     r: float = None,

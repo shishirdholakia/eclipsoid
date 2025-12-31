@@ -220,8 +220,8 @@ def ylm_to_pixels(ylm_map, lmax):
 
 def pixels_to_ylm(pixel_map, lmax):
     import s2fft
-    ylm_2d = s2fft.forward_jax(pixel_map, 3, reality=True)
-    return ylm_2d@C(lmax).T
+    ylm_2d = s2fft.forward_jax(pixel_map, lmax+1, reality=True)
+    return ylm_2d@jnp.linalg.inv(C(lmax))
 
 
 if __name__=="__main__":
